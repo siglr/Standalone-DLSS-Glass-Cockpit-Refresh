@@ -1,0 +1,16 @@
+build*/
+.vs/
+__pycache__/
+*.pyc
+*.log
+*.pdb
+*.exe
+*.dll
+*.zip
+*.dpapi
+*.pfx
+*.p12
+*.pem
+*.key
+SimulatorDirectory.txt
+*.saved*.ini

@@ -1,0 +1,12 @@
+using System.Reflection;
+[assembly: AssemblyTitle("Standalone DLSS Glass Cockpit Refresh")]
+[assembly: AssemblyDescription("MSFS 2024 glass cockpit refresh controls, installer and authenticated app updater")]
+[assembly: AssemblyProduct("Standalone-DLSS-Glass-Cockpit-Refresh")]
+[assembly: AssemblyCompany("siglr / WeSimGlide")]
+[assembly: AssemblyVersion("@PROJECT_VERSION@.0")]
+[assembly: AssemblyFileVersion("@PROJECT_VERSION@.0")]
+[assembly: AssemblyInformationalVersion("@PROJECT_VERSION@")]
+internal static class ProductVersion
+{
+    internal const string Value = "@PROJECT_VERSION@";
+}
