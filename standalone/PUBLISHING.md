@@ -1,5 +1,7 @@
 # Packaging and signing
 
+Prepare all future standalone releases from this repository. Commit and push the corresponding source and version changes here; do not build releases from an older parent project or exported copy.
+
 For a local build, run `python -B scripts/dev_package.py`. It uses a separate local DPAPI-protected development key, embeds only the public half, disables official automatic updates, and generates a development ZIP. It does not install the mod or publish files. Keep the private key out of Git and release archives.
 
 The production public verification key is intentionally public in `standalone/ReleasePublicKey.cs`. Its private counterpart is not in this repository. Publishing an official release requires that private key, `GLASS_ENABLE_OFFICIAL_UPDATES=ON`, the production public-key source, and an explicit `GLASS_SIGNING_KEY` environment variable naming the protected private-key file. Then `python -B standalone/package.py` creates the signed archive, inventory, feed and version-specific hashes under build. It does not upload them. Publish the matching ZIP first and signed version JSON last.

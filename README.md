@@ -44,6 +44,8 @@ Installer/update tests use isolated fixture folders and disposable signing keys.
 
 ## Source layout and upstream changes
 
+This repository is the authoritative source for standalone development and releases. Future changes, tests and release builds are made here directly; this is not a periodically exported mirror.
+
 - `standalone/`: C# window, native setup/discovery, authenticated updater, defaults and package tooling.
 - `src/`, `include/`: DXGI bootstrap and minimal rendering host. Internal UVR names are retained to minimize changes to the tested rendering ABI.
 - `vendor/glass/`: glass fix v0.8.3 and offline rendering fixtures, with standalone adaptations.
