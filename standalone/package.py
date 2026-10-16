@@ -54,4 +54,7 @@ details={'version':version,'verification':'SHA-256 identifies files; a matching 
 details['scanLinks']={n:'https://www.virustotal.com/gui/file/'+h+'/detection' for n,h in details['files'].items()}
 (server/('Standalone-DLSS-Glass-Cockpit-Refresh-'+version+'.hashes.json')).write_text(json.dumps(details,indent=2)+'\n')
 shutil.copy2(root/'standalone/PUBLISHING.md',server/'PUBLISHING.md')
+(server/(archive.name+'.sha256')).write_text(feed['sha256']+'  '+archive.name+'\n',encoding='utf-8')
+# The website is published alongside the archive, not installed with the app.
+shutil.copy2(root/'standalone/site/Standalone-DLSS-Glass-Cockpit-Refresh.html',server/'Standalone-DLSS-Glass-Cockpit-Refresh.html')
 print(server)

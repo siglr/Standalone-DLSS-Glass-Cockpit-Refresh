@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d1524">
+  <meta name="description" content="Standalone DLSS Glass Cockpit Refresh for MSFS 2024. The glass-cockpit refresh fix with ReShade components included, simple installation, live controls and automatic app updates.">
+  <title>Glass Cockpit Refresh · WeSimGlide</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0d1524;--alt:#121d31;--panel:#192336;--text:#f4f8ff;--muted:#bed0ec;--blue:#82afff;--hover:#9cc0ff;--line:rgba(168,194,235,.22);--green:#a6e4cc}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:28px}body{margin:0;background:var(--bg);color:var(--text);font-family:Roboto,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.65}a{color:var(--blue);text-underline-offset:4px}a:hover{color:var(--hover)}button,a,summary{-webkit-tap-highlight-color:transparent}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:5px;border-radius:4px}::selection{background:var(--blue);color:var(--bg)}.wrap{max-width:1160px;margin:auto;padding:0 32px}.skip{position:absolute;top:-80px;left:16px;background:var(--blue);color:var(--bg);padding:10px 16px;z-index:5}.skip:focus{top:12px}
+    header{border-bottom:1px solid var(--line)}.header-inner{min-height:104px;display:flex;align-items:center;justify-content:space-between;gap:28px}.brand{display:inline-flex;align-items:center;text-decoration:none;flex-shrink:0}.brand img{display:block;width:210px;max-height:78px;object-fit:contain}.nav{display:flex;align-items:center;gap:27px;font-size:14px}.nav a{white-space:nowrap;color:var(--muted);text-decoration:none}.nav a:hover{color:white}.nav .contribute{border:1px solid var(--line);padding:9px 16px;border-radius:8px;color:var(--text)}
+    .hero{padding:76px 0 58px;display:grid;grid-template-columns:1.25fr 1fr;align-items:center;gap:52px}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--blue);font-weight:700;margin:0 0 20px}.release{display:inline-flex;gap:9px;align-items:center;color:var(--muted);font-size:13px;margin-bottom:21px}.release:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}h1{font-size:clamp(38px,4.6vw,60px);font-weight:700;letter-spacing:-.045em;line-height:1.08;margin:0 0 26px}h1 span{color:var(--blue)}.lead{font-size:17px;line-height:1.75;color:var(--muted);max-width:570px;margin:0 0 28px}.product-name{font-weight:650;color:var(--text)}.button{display:inline-flex;justify-content:center;align-items:center;gap:13px;padding:13px 21px;background:var(--blue);border:1px solid var(--blue);border-radius:9px;font-size:15px;font-weight:700;text-decoration:none;color:#091526;transition:background .15s}.button:hover{background:var(--hover);color:#091526}.button svg{width:19px;height:19px}.download-meta{font-size:12px;color:var(--muted);margin:12px 0 0}.download-meta a{color:var(--muted)}
+    .instrument{position:relative;border:1px solid rgba(168,194,235,.3);border-radius:20px;padding:24px;background:linear-gradient(155deg,#25354e,#121e32 67%);box-shadow:0 24px 60px rgba(3,8,20,.35)}.instrument-top{display:flex;justify-content:space-between;gap:16px;color:var(--muted);font-size:10px;letter-spacing:.15em;margin-bottom:20px}.instrument svg{display:block;width:100%;height:auto}.instrument-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;font-size:12px;color:var(--muted)}.instrument-bottom span:first-child{color:var(--green)}.instrument-bottom i{display:inline-block;width:6px;height:6px;background:var(--green);border-radius:50%;margin-right:7px}.illustration{font-size:10px;opacity:.7}
+    .highlights{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:25px 0;gap:36px}.highlights strong{font-size:15px;font-weight:650}.highlights p{margin:5px 0 0;color:var(--muted);font-size:14px}.section{padding:62px 0;border-bottom:1px solid var(--line)}.section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:24px;margin-bottom:28px}h2{font-size:29px;letter-spacing:-.025em;line-height:1.25;margin:0 0 14px}.section-heading h2{margin:0}.section-heading p{color:var(--muted);font-size:14px;margin:0}h3{font-size:17px;line-height:1.4;margin:0 0 12px}p{margin:0 0 15px}.steps{counter-reset:steps;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:28px}.steps li{padding:25px 24px;background:var(--alt);border:1px solid var(--line);border-radius:12px}.steps li:before{counter-increment:steps;content:"0" counter(steps);display:block;font-size:13px;font-weight:700;color:var(--blue);letter-spacing:.12em;margin-bottom:22px}.steps p{font-size:14px;color:var(--muted);margin-bottom:12px}.steps p:last-child{margin:0}code{font-family:Consolas,monospace;font-size:.85em;overflow-wrap:anywhere;color:var(--text)}.file-name{display:block;font-size:12px;background:rgba(255,255,255,.035);padding:10px 12px;border-radius:6px;margin:12px 0}.small-note{font-size:13px;color:var(--muted);margin:20px 0 0}.small-note strong{color:var(--text)}
+    .operation{display:grid;grid-template-columns:.9fr 1.3fr;gap:64px}.operation-intro p{color:var(--muted);font-size:15px}.defaults{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.defaults span{background:var(--panel);border:1px solid var(--line);padding:5px 9px;border-radius:5px;font-size:11px;color:var(--muted)}.controls{margin:0}.control{display:grid;grid-template-columns:127px 1fr;gap:20px;padding:17px 0;border-bottom:1px solid var(--line)}.control:first-child{padding-top:0}.control:last-child{border:0;padding-bottom:0}.control dt{font-weight:650;font-size:14px;color:var(--text)}.control dd{margin:0;font-size:14px;color:var(--muted)}
+    .help-intro{color:var(--muted);font-size:15px;max-width:760px}.accordion{margin-top:26px;border-top:1px solid var(--line)}details{border-bottom:1px solid var(--line)}summary{padding:20px 34px 20px 0;font-size:16px;font-weight:600;cursor:pointer;list-style:none;position:relative}summary::-webkit-details-marker{display:none}summary:after{content:"+";position:absolute;right:4px;top:16px;font-size:24px;color:var(--blue);font-weight:400}details[open]>summary:after{content:"−"}.answer{max-width:890px;padding:0 24px 24px 0;font-size:14px;color:var(--muted)}.answer p:last-child{margin-bottom:0}.answer strong{color:var(--text)}.answer ol,.answer ul{padding-left:22px;margin:14px 0}.answer li{padding-left:4px;margin-bottom:9px}.source-link{font-size:12px}.caution{border-left:2px solid var(--blue);padding-left:16px;margin-top:18px}.support{display:flex;justify-content:space-between;align-items:center;gap:35px;padding:42px 0}.support h2{font-size:24px;margin-bottom:9px}.support p{color:var(--muted);font-size:14px;max-width:670px;margin:0}.button.secondary{flex-shrink:0;background:transparent;color:var(--text);border-color:var(--line)}.button.secondary:hover{background:var(--panel);border-color:var(--blue)}footer{background:#0a1220;border-top:1px solid var(--line);padding:26px 0}.footer-inner{display:flex;justify-content:space-between;align-items:flex-start;gap:30px;font-size:12px;color:var(--muted)}footer p{margin:0;max-width:770px}footer a{color:var(--muted)}.footer-home{white-space:nowrap}
+    @media(max-width:850px){.hero{gap:28px;padding:48px 0}.instrument{padding:16px}.operation{gap:32px;grid-template-columns:1fr 1.2fr}.steps{gap:14px}.steps li{padding:22px 18px}.nav{gap:18px}.brand img{width:175px}.control{grid-template-columns:108px 1fr;gap:16px}}
+    @media(max-width:650px){.wrap{padding:0 22px}.header-inner{min-height:87px;gap:15px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.brand img{width:150px;max-height:62px}.nav .section-link{display:none}.nav .contribute{font-size:12px;padding:8px 11px}.hero{grid-template-columns:1fr;padding:40px 0 34px;gap:32px}h1{font-size:43px}.lead{font-size:16px}.instrument{max-width:420px;width:100%;margin:auto;padding:22px}.highlights{grid-template-columns:1fr;gap:21px;padding:26px 0}.section{padding:40px 0}.section-heading{display:block}.section-heading p{margin-top:12px}.steps{grid-template-columns:1fr;gap:15px}.steps li{padding:23px}.steps li:before{margin-bottom:14px}.operation{grid-template-columns:1fr;gap:28px}.control{grid-template-columns:110px 1fr;gap:18px}.support{display:block}.support .button{margin-top:22px}.footer-inner{display:block}.footer-home{display:inline-block;margin-top:15px}.answer{padding-right:0}h2{font-size:27px}.download-meta{line-height:1.8}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="https://wesimglide.org/" aria-label="WeSimGlide home"><img src="https://wesimglide.org/images/WeSimGlide.png" alt="WeSimGlide" width="210" decoding="async"></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a class="other-tools" href="index.html">Other tools</a>
+        <a class="section-link" href="#install">Install</a><a class="section-link" href="#operate">Use the mod</a><a class="section-link" href="#help">Help</a><a class="section-link" href="#source">Source code</a>
+        <a class="contribute" href="https://wesimglide.org/?tab=about">Contribute ↗</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">WeSimGlide · Tools for your next flight</p>
+        <div class="release"><span id="release-version">Community test release</span><span aria-hidden="true">/</span><span>MSFS 2024</span></div>
+        <h1 id="hero-title">Clearer instruments.<br><span>Less setup.</span></h1>
+        <p class="lead"><span class="product-name">Standalone DLSS Glass Cockpit Refresh</span> brings IFreemz’s glass-cockpit refresh fix and the ReShade components it needs into one simple installer. Help reduce instrument ghosting with DLSS or FSR upscaling, on a monitor or in VR.</p>
+        <a class="button" href="Standalone-DLSS-Glass-Cockpit-Refresh.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>Download for Windows</a>
+        <p class="download-meta">Complete ZIP <span id="release-size"></span> · Windows x64 · <a href="#install">Installation guide ↓</a> · <a href="#verify">Verify download</a></p>
+      </div>
+      <div class="instrument" role="img" aria-label="Illustration of a clear glass-cockpit attitude display, not an in-game screenshot">
+        <div class="instrument-top"><span>GLASS COCKPIT REFRESH</span><span>DESKTOP / VR</span></div>
+        <svg viewBox="0 0 360 252" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs><clipPath id="screen"><rect width="360" height="252" rx="9"/></clipPath><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#235b8f"/><stop offset="1" stop-color="#478cb9"/></linearGradient></defs>
+          <g clip-path="url(#screen)">
+            <rect width="360" height="252" fill="#0a1525"/><path d="M68 0h224v128H68z" fill="url(#sky)"/><path d="M68 128h224v124H68z" fill="#62584d"/><path d="M68 128h224" stroke="#d0e8ec" stroke-width="2"/>
+            <g stroke="#dcebf9" stroke-width="1.5"><path d="M150 52h60m-45 18h30m-55 20h80m-55 18h30m-45 38h60m-45 18h30m-55 20h80"/><path d="M97 29a110 110 0 0 1 166 0" fill="none"/><path d="m180 0-5 9h10Z" fill="#dcebf9"/></g>
+            <g fill="#e9f5ff" font-family="Segoe UI,Arial,sans-serif" font-size="12" text-anchor="middle"><text x="131" y="94">10</text><text x="229" y="94">10</text><text x="135" y="150">10</text><text x="225" y="150">10</text></g>
+            <path d="M115 128h43l10 9m77-9h-43l-10 9" stroke="#ffdf80" stroke-width="4" fill="none"/><circle cx="180" cy="128" r="4" stroke="#ffdf80" stroke-width="2" fill="#101e30"/>
+            <g fill="#172638" stroke="#466078"><rect x="9" y="20" width="53" height="196" rx="3"/><rect x="298" y="20" width="53" height="196" rx="3"/></g>
+            <g stroke="#809bb0"><path d="M50 44h12m-7 18h7M50 80h12m-7 18h7m-7 54h7m-12 18h12m-7 18h7m-12 18h12M298 44h12m-12 18h7m-7 18h12m-12 18h7m-7 54h7m-7 18h12m-12 18h7m-7 18h12"/></g>
+            <g fill="#bcd2e2" font-family="Consolas,monospace" font-size="13" text-anchor="middle"><text x="32" y="50">120</text><text x="32" y="86">110</text><text x="32" y="176">90</text><text x="32" y="212">80</text><text x="329" y="50">54</text><text x="329" y="86">53</text><text x="329" y="176">51</text><text x="329" y="212">50</text></g>
+            <path d="M6 108h54l9 20-9 20H6Z" fill="#07111e" stroke="#c0d6e5"/><path d="M354 108h-54l-9 20 9 20h54Z" fill="#07111e" stroke="#c0d6e5"/>
+            <g fill="#fff" font-family="Consolas,monospace" font-size="23" text-anchor="middle"><text x="35" y="136">100</text><text x="327" y="136">5200</text></g>
+            <rect x="105" y="212" width="150" height="29" rx="4" fill="#101d2d"/><g font-family="Consolas,monospace" text-anchor="middle"><text x="180" y="231" fill="#a6e4cc" font-size="15">HDG  270°</text><text x="35" y="239" fill="#abc6dd" font-size="10">KTS</text><text x="326" y="239" fill="#abc6dd" font-size="10">FT</text></g>
+          </g>
+        </svg>
+        <div class="instrument-bottom"><span><i></i>Focus on the flying</span><span class="illustration">Display illustration</span></div>
+      </div>
+    </section>
+    <div class="highlights">
+      <div><strong>ReShade components included</strong><p>No separate ReShade installation or menu to configure.</p></div>
+      <div><strong>Your normal MSFS launch</strong><p>Install once. Keep using your usual simulator shortcut.</p></div>
+      <div><strong>Works alongside official OFXR</strong><p>Frame generation stays separate, with your own OFXR settings.</p></div>
+    </div>
+    <aside class="caution" style="margin-top:28px" aria-label="Antivirus notice">
+      <strong>A note about antivirus warnings — October 14, 2026</strong>
+      <p>I fully believe this app is harmless and that the reported antivirus alerts are false positives. That is my assessment, not a confirmed finding from every antivirus vendor. Microsoft review has been requested, and submissions to other vendors are underway.</p>
+      <p>I am working on making the app’s installation and automatic updates more transparent and better protected, so antivirus software can assess them more accurately. I cannot promise that these changes will remove the warnings or guarantee antivirus clearance. Please keep your security protection enabled; if your antivirus blocks the app, leave it blocked while the review is ongoing.</p>
+    </aside>
+    <section id="install" class="section" aria-labelledby="install-title">
+      <div class="section-heading"><h2 id="install-title">From download to cockpit.</h2><p>One complete package. Three simple steps.</p></div>
+      <p class="caution"><strong>Already using ReShade in MSFS?</strong> Do not install this standalone package. Use <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases">IFreemz’s original Glass Cockpit DLSS Fix add-on for ReShade</a> instead, alongside your existing ReShade setup.</p>
+      <ol class="steps">
+        <li><h3>Download &amp; extract</h3><p>Download the ZIP above. Choose <strong>Extract All</strong> and save the complete folder somewhere writable, outside your MSFS Content folder.</p><p>Keep all files and subfolders together. Don’t run the EXE from inside the ZIP.</p></li>
+        <li><h3>Close MSFS &amp; install</h3><p>Open the extracted application:</p><code class="file-name">Standalone-DLSS-Glass-Cockpit-Refresh.exe</code><p>Check the automatically detected MSFS 2024 <strong>game folder</strong>, then click <strong>Install</strong>. Use <strong>Browse</strong> if needed, and approve a Windows administrator prompt only if the folder requires it. The folder must contain <code>FlightSimulator2024.exe</code>: Xbox calls it <strong>Content</strong>; Steam uses its game folder.</p></li>
+        <li><h3>Start your next flight</h3><p>Launch MSFS as usual. Use <strong>DLSS or FSR upscaling</strong> in the simulator’s graphics settings.</p><p>Leave the glass fix enabled. Start with the author’s defaults, then compare on/off while parked in your favourite aircraft.</p></li>
+      </ol>
+      <p class="small-note"><strong>Already using another glass-cockpit fix?</strong> Remove a duplicate glass fix first. If the installer finds conflicting mod files, review its backup-and-replace prompt before proceeding. <a href="#security">Windows blocked the app? See the help below.</a></p>
+    </section>
+    <section id="operate" class="section operation" aria-labelledby="operate-title">
+      <div class="operation-intro">
+        <p class="eyebrow">Simple controls, even in VR</p>
+        <h2 id="operate-title">Set it up.<br>Keep flying.</h2>
+        <p>Use the small control window to adjust the fix without leaving your VR session. No keyboard shortcuts to conflict with MSFS bindings.</p>
+        <p>You can close the window after choosing your settings. The fix stays active; the temporary green coverage tint switches off when the window closes.</p>
+        <div class="defaults" aria-label="Author defaults"><span>Smoothing 35</span><span>Extra OFF</span><span>UV seam fix ON</span><span>Dark screen fix OFF</span></div>
+      </div>
+      <dl class="controls">
+        <div class="control"><dt>Enable / disable</dt><dd>Toggle <strong>Enable glass-cockpit refresh fix</strong>. The change applies while the simulator renders; this does not unload the mod.</dd></div>
+        <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing, or use the green tint briefly to see which screens are being corrected. Hover over controls for explanations.</dd></div>
+        <div class="control"><dt>Advanced &amp;<br>Experimental</dt><dd>Fine-tune only when needed for a particular aircraft. Each tab has a reset button to restore the author’s defaults for that group.</dd></div>
+        <div class="control"><dt>Update</dt><dd>The app checks for new releases at launch and reopens after updating itself. If the files installed in MSFS also need updating, close MSFS and click <strong>Update</strong>. The button is greyed out when those DLLs already match. Your settings are kept.</dd></div>
+        <div class="control"><dt>Uninstall</dt><dd>Close MSFS, reopen the app and click <strong>Uninstall</strong>. It removes the mod’s installed files and restores originals that it backed up. No manual DLL copying is needed.</dd></div>
+      </dl>
+    </section>
+    <section id="verify" class="section" aria-labelledby="verify-title">
+      <h2 id="verify-title">Check your download.</h2>
+      <p>A SHA-256 checksum is a fingerprint of a file. Matching the published fingerprint confirms your ZIP matches this release. It does <strong>not</strong> prove that the software is harmless or replace antivirus checks.</p>
+      <p id="hash-version">Release fingerprint is loading…</p>
+      <code id="zip-hash" class="file-name" style="user-select:all">Unavailable until release information loads.</code>
+      <p><a id="hash-details" hidden>Version-specific file hashes and scan links</a> <span id="scan-separator" hidden> · </span><a id="zip-scan" hidden>Look up this ZIP on VirusTotal</a></p>
+      <p class="small-note">Scan links open a report for the exact file hash, if one exists. A link does not mean the file has been submitted, scanned or cleared. This page does not upload files to VirusTotal.</p>
+      <details open>
+        <summary>Easy check: select the ZIP on your computer</summary>
+        <div class="answer">
+          <p>Your browser calculates the checksum locally. The selected file is not uploaded or executed. Choose the original downloaded ZIP, before extracting it.</p>
+          <label for="verify-file">Downloaded ZIP</label><br>
+          <input id="verify-file" type="file" accept=".zip,application/zip" disabled style="max-width:100%;margin:12px 0">
+          <p id="verify-result" role="status" aria-live="polite">Waiting for the published checksum.</p>
+          <code id="local-hash" class="file-name" hidden></code>
+        </div>
+      </details>
+      <details>
+        <summary>Or check it with Windows PowerShell</summary>
+        <div class="answer">
+          <p>Open the folder containing your downloaded ZIP in File Explorer. Type <code>powershell</code> in its address bar and press Enter. Paste this command:</p>
+          <code class="file-name">Get-FileHash -Algorithm SHA256 -LiteralPath '.\Standalone-DLSS-Glass-Cockpit-Refresh.zip' | Select-Object -ExpandProperty Hash</code>
+          <p>Compare all 64 characters with the published SHA-256 above. Uppercase and lowercase are equivalent. Change the filename if Windows added a suffix such as <code>(1)</code>. If the hashes differ, do not run that download: check its version and download a fresh copy.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What changed to protect installation and updates?</summary>
+        <div class="answer">
+          <p>From <strong>v0.1.9</strong>, installation and game-folder detection run directly in the application. The launcher no longer starts PowerShell or sends encoded shell commands. It requests administrator rights only when folder permissions require them.</p>
+          <p>The app verifies release signatures using a public key built into the launcher, checks every packaged file against a signed inventory, and keeps recovery copies during replacement. It accepts updates only from the fixed WeSimGlide HTTPS addresses. Your glass settings and uninstall backups are preserved.</p>
+          <p>This release signing is separate from Windows publisher signing. The EXE still has no trusted Authenticode certificate, so SmartScreen or antivirus alerts can remain. The graphics DLLs still hook MSFS rendering, as required by the fix. The ZIP includes <code>SECURITY.md</code> describing file changes, network access and these limits.</p>
+          <p><strong>Already using v0.1.4 or later? Just open the app as usual.</strong> It will update automatically when the new release is available. No manual download, uninstall or reinstall is needed. The added signature protection takes effect automatically after this update.</p>
+        </div>
+      </details>
+    </section>
+    <section id="source" class="section" aria-labelledby="source-title">
+      <div class="section-heading"><h2 id="source-title">See how the mod works.</h2><p>Public source. Clear licensing.</p></div>
+      <p>The standalone tool's source code is available on GitHub, including the launcher, installer, update verification, and the rendering components used by the glass fix. The repository includes build instructions, offline tests, upstream version information and a description of the app's security behavior.</p>
+      <p>You can inspect the code and build your own version. My original code is licensed under <strong>PolyForm Noncommercial 1.0.0</strong>, allowing noncommercial use, modification and sharing under its terms. ReShade, the original glass fix and other dependencies retain their own licenses. This is source-available software; commercial use of my original code is not permitted by this license.</p>
+      <p><a class="button secondary" href="https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh">View source on GitHub &#8599;</a></p>
+      <p class="small-note">Publishing source makes the app easier to inspect. It does not certify the download as safe or guarantee antivirus clearance. A local source build is not claimed to be byte-for-byte identical to the official download; development builds use their own signing key and have automatic official updates disabled. For normal installation, use the complete ZIP linked above.</p>
+    </section>
+    <section id="help" class="section" aria-labelledby="help-title">
+      <h2 id="help-title">A little help before take-off.</h2>
+      <p class="help-intro">Installation help, compatibility and what to try if something goes wrong. For Windows warnings, check whether the message is about app reputation or an antivirus detection before deciding what to allow.</p>
+      <div class="accordion">
+        <details>
+          <summary>Something is wrong or MSFS crashes. How do I get support?</summary>
+          <div class="answer">
+            <p><strong>First compare with the original mod, installed and configured the original way through ReShade.</strong> This helps identify whether the problem is in the original fix or this standalone package.</p>
+            <ol><li>Close MSFS and use this app’s <strong>Uninstall</strong> button. Keep this package uninstalled during the comparison; turning its checkbox off does not fully unload it.</li><li>Install <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#installation">IFreemz’s original Glass Cockpit DLSS Fix through ReShade</a>, following the author’s installation instructions. Configure it through the <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#settings">original ReShade settings menu</a>, then try the same aircraft and situation.</li><li><strong>If the original mod works but this package does not, contact me on the WSG Discord.</strong> You can find the Discord link on the <a href="https://wesimglide.org/">WeSimGlide website</a>. Tell me that you tested the original ReShade version and explain what worked differently.</li><li>If the problem also occurs with the original add-on, follow the author’s <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#troubleshooting">troubleshooting and bug-report instructions</a> and <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/issues">report it to the original author</a>.</li></ol>
+            <p>For crashes, also test MSFS without either fix. If it still crashes, investigate the simulator, drivers and other add-ons first; that result does not establish a bug in the glass fix.</p>
+            <p>Include the mod version, aircraft, desktop or VR setup, DLSS/FSR settings, frame generation, other add-ons and the steps that reproduce the crash.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Do I need a particular DLSS preset or quality mode?</summary>
+          <div class="answer"><p><strong>No particular DLSS preset is required.</strong> Keep the preset that works best for your setup. The original fix supports all DLSS quality modes, including DLAA, and also supports FSR.</p><p>Quality modes such as Quality, Balanced and Performance are different from DLSS model presets such as J, K or M. The fix redraws instrument content after upscaling, so it does not depend on choosing one specific model preset. This is not a guarantee that every driver override or future preset has been tested; image quality can still vary.</p><p>Use DLSS or FSR as the simulator’s anti-aliasing/upscaling mode. Enabling frame generation alone while using TAA is not enough. <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#readme">See the original mod’s documentation.</a></p></div>
+        </details>
+        <details>
+          <summary>Does this work with Microsoft Flight Simulator 2020?</summary>
+          <div class="answer"><p><strong>No. This package supports MSFS 2024 only.</strong> The original add-on targets MSFS 2024’s cockpit rendering; packaging it with ReShade components does not add MSFS 2020 support.</p><p>MSFS 2020 compatibility is outside this package’s scope. There is no installer setting or DLSS preset that enables it. <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#requirements">Original mod requirements.</a></p></div>
+        </details>
+        <details id="security">
+          <summary>Windows SmartScreen says “Windows protected your PC”</summary>
+          <div class="answer">
+            <p>If you downloaded this package from <strong>WeSimGlide.org</strong> and trust its source, you can approve this specific app:</p>
+            <ol><li>Choose <strong>More info</strong> in the SmartScreen warning.</li><li>Check that the named app is <code>Standalone-DLSS-Glass-Cockpit-Refresh.exe</code>.</li><li>Select <strong>Run anyway</strong>, if offered. An administrator prompt is used only if changing the simulator folder requires it.</li></ol>
+            <p>This is an approval for the app; you do not need to turn SmartScreen off. If there is no override, your device’s policy or Smart App Control may be blocking it. On a managed PC, ask the administrator. Don’t disable system-wide protections just to run the mod.</p>
+            <p class="source-link">Microsoft guidance: <a href="https://learn.microsoft.com/en-us/troubleshoot/microsoft-edge/development/ie-mode-blocks-addon#check-uac-and-windows-defender-smartscreen-settings">SmartScreen approval steps</a> · <a href="https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions">Smart App Control</a></p>
+          </div>
+        </details>
+        <details>
+          <summary>Antivirus quarantined the EXE or one of the mod’s DLLs</summary>
+          <div class="answer">
+            <p>A detection <em>can</em> be a false positive, but don’t assume that every alert is harmless. First update your antivirus definitions, check the exact file and detection name, and make sure the ZIP came from this page.</p>
+            <p>During the current vendor review, leave a detected file blocked. Check <strong>Windows Security → Virus &amp; threat protection → Protection history</strong> for the exact filename and detection name. Send those details to the antivirus vendor, or contact me on the WSG Discord linked from the <a href="https://wesimglide.org/">WeSimGlide website</a>.</p>
+            <p class="caution">Keep antivirus protection enabled. Do not exclude your Downloads, MSFS or mod folder. A matching checksum confirms which release you downloaded; it does not establish that an antivirus alert is wrong.</p>
+            <p class="source-link"><a href="https://support.microsoft.com/en-us/windows/security/windows-security/protection-history-in-the-windows-security-app">Microsoft: reviewing and restoring quarantined files</a></p>
+          </div>
+        </details>
+        <details>
+          <summary>Do I need ReShade, OFXR, or a particular headset?</summary>
+          <div class="answer"><p><strong>ReShade:</strong> the required components are built in. A separate full ReShade installation is not required. If you already use ReShade in MSFS, use <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases">the original Glass Cockpit DLSS Fix add-on</a> instead of this standalone package.</p><p><strong>OFXR:</strong> this package does not generate frames. If you want frame generation too, install and run the <a href="https://github.com/djules75/OFXR-Bridge/releases">official OFXR Bridge</a> separately, using settings suitable for your hardware. This mod does not change those settings.</p><p><strong>Headsets:</strong> the fix is not restricted to a Pimax headset or runtime. It targets MSFS 2024’s D3D12 upscaling path for desktop and VR. Other headset/runtime combinations are not all validated; test on your own setup. Instrument results can vary by aircraft and upscaler.</p><p><strong>Requirements:</strong> Windows x64, MSFS 2024 with DLSS or FSR upscaling, and the Microsoft Visual C++ x64 runtime needed by the DLLs. The control app uses Windows’ .NET Framework.</p></div>
+        </details>
+        <details>
+          <summary>Do updates need an uninstall and reinstall?</summary>
+          <div class="answer"><p><strong>No, not for a normal update.</strong> From v0.1.4 onward, the app checks for updates at launch. It downloads and verifies a newer package, closes briefly, then reopens itself. If the server is unavailable, the current app remains usable.</p><p>An app-only update does not need to change files in MSFS. If the simulator DLLs differ, the app enables <strong>Update</strong>; close MSFS before clicking it. Installed settings and original uninstall backups are kept. An interrupted update can also offer recovery through Update.</p><p>Coming from v0.1.3 or earlier? Close the control window and extract the complete current ZIP over your external mod folder once. Then open the new EXE. Keep your settings backups and <code>SimulatorDirectory.txt</code>.</p></div>
+        </details>
+        <details>
+          <summary>What gets installed in the MSFS Content folder?</summary>
+          <div class="answer"><p>The installer adds <code>dxgi.dll</code>, <code>StandaloneGlassGraphics.dll</code> and <code>StandaloneGlass.ini</code>, plus an installation receipt and any needed backups. Existing conflicting mod files are replaced only after confirmation and are backed up for Uninstall.</p><p>It does not edit original MSFS binaries, headset files, OFXR settings or OpenXR registrations. Settings backups stay beside the external app; diagnostic logs can remain after uninstall. Unexpectedly changed files are preserved for review rather than silently removed.</p></div>
+        </details>
+      </div>
+    </section>
+    <section class="support" aria-labelledby="support-title">
+      <div><h2 id="support-title">Enjoying the view?</h2><p>Help keep WeSimGlide’s community tools growing. Contributions are optional and support ongoing development and hosting.</p></div>
+      <a class="button secondary" href="https://wesimglide.org/?tab=about">Contribute to WeSimGlide ↗</a>
+    </section>
+  </main>
+  <footer><div class="wrap footer-inner"><p>Built on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">IFreemz’s Glass Cockpit DLSS Fix</a> and <a href="https://github.com/crosire/reshade">ReShade by crosire</a>. Upstream licenses are included in the ZIP.<br>Community test release. Results vary by aircraft and setup. <a href="Standalone-DLSS-Glass-Cockpit-Refresh.version.json">Release information</a></p><a class="footer-home" href="https://wesimglide.org/">Back to WeSimGlide ↗</a></div></footer>
+  <script>
+    // All file hashing happens locally. No file bytes are sent to the server.
+    (async function () {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const input = document.getElementById('verify-file');
+      const result = document.getElementById('verify-result');
+      const fingerprint = document.getElementById('local-hash');
+      try {
+        const response = await fetch('Standalone-DLSS-Glass-Cockpit-Refresh.version.json', {cache:'no-store', signal:controller.signal});
+        if (!response.ok) throw new Error('Release information unavailable');
+        const release = await response.json();
+        if (release.schema !== 1 || release.product !== 'Standalone-DLSS-Glass-Cockpit-Refresh' || !/^\d+\.\d+\.\d+$/.test(release.version) || !/^[0-9a-f]{64}$/i.test(release.sha256) || !Number.isSafeInteger(release.size) || release.size <= 0 || release.size > 67108864) throw new Error('Invalid release information');
+        document.getElementById('release-version').textContent = 'v' + release.version + ' · Community test release';
+        document.getElementById('release-size').textContent = '· ' + (release.size < 1048576 ? Math.ceil(release.size / 1024) + ' KB' : (release.size / 1048576).toFixed(1) + ' MB');
+        document.getElementById('hash-version').textContent = 'Published ZIP · v' + release.version + ' · ' + release.size.toLocaleString() + ' bytes';
+        document.getElementById('zip-hash').textContent = release.sha256.toLowerCase();
+        const scan = document.getElementById('zip-scan');
+        scan.href = 'https://www.virustotal.com/gui/file/' + release.sha256.toLowerCase() + '/detection'; scan.hidden = false;
+        // Older feeds have no version-specific file list; avoid a broken link during transition.
+        if (release.signature && release.keyId) {
+          const details = document.getElementById('hash-details');
+          details.href = release.product + '-' + release.version + '.hashes.json'; details.hidden = false;
+          document.getElementById('scan-separator').hidden = false;
+        }
+        if (!window.crypto || !window.crypto.subtle) {
+          result.textContent = 'Local browser checking needs HTTPS (or localhost). Use the PowerShell command below.';
+          return;
+        }
+        input.disabled = false;
+        result.textContent = 'Choose your downloaded ZIP to compare it with v' + release.version + '.';
+        let selection = 0;
+        input.addEventListener('change', async () => {
+          const current = ++selection;
+          const file = input.files[0]; fingerprint.hidden = true;
+          if (!file) { result.textContent = 'No file selected.'; return; }
+          if (file.size > 67108864) { result.textContent = 'This file is too large for this release. Check that you selected the correct ZIP.'; return; }
+          result.textContent = 'Calculating SHA-256 locally…';
+          try {
+            const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer())), b => b.toString(16).padStart(2, '0')).join('');
+            if (current !== selection) return;
+            fingerprint.textContent = hash; fingerprint.hidden = false;
+            result.textContent = hash === release.sha256.toLowerCase() && file.size === release.size
+              ? 'Match — this ZIP is identical to the published v' + release.version + ' download. This is an integrity check, not a safety certification.'
+              : 'Does not match the current v' + release.version + ' download. It may be an older release, incomplete, or altered. Do not run it until you have checked the source and version.';
+          } catch (_) { if (current === selection) result.textContent = 'Could not read this file. Try the PowerShell command below.'; }
+        });
+      } catch (_) {
+        document.getElementById('hash-version').textContent = 'Published checksum unavailable. Please reload later.';
+        result.textContent = 'Verification is unavailable until the release information loads. Do not treat this as a match.';
+      } finally { clearTimeout(timer); }
+    })();
+  </script>
+</body>
+</html>
