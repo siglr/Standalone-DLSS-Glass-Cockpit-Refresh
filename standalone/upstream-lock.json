@@ -1,6 +1,6 @@
 {
   "product": "Standalone-DLSS-Glass-Cockpit-Refresh",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "glass": {
     "repository": "https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix",
     "release": "v0.8.3",

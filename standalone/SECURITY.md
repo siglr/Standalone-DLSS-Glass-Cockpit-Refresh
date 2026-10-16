@@ -1,8 +1,10 @@
-# Security and application behavior — v0.1.9
+# Security and application behavior — v0.1.10
 
 > Source repository: default source builds disable automatic official updates and use a separate local key when packaged with `scripts/dev_package.py`. The network/update behavior below describes official releases. Source builds are not claimed to reproduce official binaries byte for byte.
 
-This document describes the standalone package so users and antivirus reviewers can assess its behavior. It is not a safety certification. Antivirus alerts have been reported for v0.1.8; Microsoft review was requested and other vendor submissions are being handled separately. No vendor clearance for v0.1.9 is claimed. Keep protection enabled and leave detected files blocked during review.
+v0.1.10 adds native WinForms styling and embedded WSG branding. It adds no browser engine, theme downloads, network endpoints, capture or reporting.
+
+This document describes the standalone package so users and antivirus reviewers can assess its behavior. It is not a safety certification. Antivirus alerts have been reported for v0.1.8; Microsoft review was requested and other vendor submissions are being handled separately. No vendor clearance for v0.1.10 is claimed. Keep protection enabled and leave detected files blocked during review.
 
 ## Executable and graphics DLLs
 
@@ -16,7 +18,7 @@ The graphics DLLs intercept MSFS D3D12/upscaler rendering so the glass fix can r
 - Its simulator payload is restricted to dxgi.dll, StandaloneGlassGraphics.dll and StandaloneGlass.ini. It keeps .StandaloneGlass-install.json, optional original files in .StandaloneGlass-backup, and temporary .StandaloneGlass-transaction recovery data.
 - Existing conflicting files require explicit replacement consent and are backed up. Updates preserve the complete installed INI and original uninstall backups. Uninstall restores originals and saves changed settings beside the app; unexpectedly changed DLLs or damaged backups stop recovery.
 - Setup tries normal user permissions. If access is denied, the UI offers a UAC prompt to run the same EXE for the selected install/uninstall operation and folder. It does not elevate the self-updater or silently change permissions/ownership.
-- Live controls edit the mod's INI. SimulatorDirectory.txt remembers the selected folder beside the external app. Existing renderer diagnostics can remain beside MSFS; this release adds no logging, capture or reporting feature.
+- Live controls edit the mod's INI. SimulatorDirectory.txt remembers the selected folder beside the external app. Appearance.txt stores the Dark/Light selection there; it does not change simulator settings. Existing renderer diagnostics can remain beside MSFS; this release adds no logging, capture or reporting feature.
 - The launcher does not add services, scheduled tasks, startup entries, antivirus exclusions or firewall rules. It does not modify OFXR settings, OpenXR registration, headset files or original MSFS executables.
 
 ## Network access and automatic updates

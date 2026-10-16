@@ -1,8 +1,12 @@
 > Source builds are labeled **source build** and have official automatic app updates disabled. Use `python -B scripts/dev_package.py` to build an installable local package with your own key. The automatic-update instructions below describe official WeSimGlide binary releases.
 
-# Standalone-DLSS-Glass-Cockpit-Refresh v0.1.9
+# Standalone-DLSS-Glass-Cockpit-Refresh v0.1.10
 
 Glass Cockpit DLSS Fix v0.8.3 with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+
+## v0.1.10 appearance
+
+The compact control window now uses WeSimGlide's styling and embedded WSG logo and app icon. Choose Dark or Light at the top right; the app remembers the choice in Appearance.txt beside the EXE. All glass controls, author defaults, live changes and reset buttons are retained. No browser runtime or extra theme files are needed. Windows high-contrast mode uses system colours.
 
 ## Install and test
 
@@ -116,7 +120,7 @@ The launcher now discovers the simulator and installs/uninstalls directly in C#,
 
 New releases and their file inventories use RSA-3072/SHA-256 signatures verified with a public key embedded in the launcher. This is **not Windows Authenticode signing**: the EXE still has no trusted publisher certificate, and antivirus/SmartScreen warnings may remain. See SECURITY.md for the exact file changes, network requests, protection limits and antivirus status.
 
-Existing v0.1.4–v0.1.8 apps can update once using their original HTTPS/checksum updater; the added signature fields are compatible with it. Signature enforcement starts after v0.1.9 is installed. Alternatively, close the app and extract the complete official ZIP over its external folder, preserving settings backups and SimulatorDirectory.txt. No simulator uninstall is required. Renderer DLLs and defaults are unchanged, so this release normally leaves the MSFS Update button disabled.
+Existing v0.1.4–v0.1.8 apps can update once using their original HTTPS/checksum updater; the added signature fields are compatible with it. Signature enforcement starts after v0.1.9 is installed. Alternatively, close the app and extract the complete official ZIP over its external folder, preserving settings backups and SimulatorDirectory.txt. No simulator uninstall is required. For v0.1.9, renderer DLLs and defaults were unchanged, so that release normally left the MSFS Update button disabled. Later source builds can differ; the button checks the actual installed DLL hashes.
 
 Installation replacement is transactional and preserves original backups. Modified DLLs, invalid signatures, linked paths or damaged recovery data stop the operation. Settings changes are preserved during updates and saved during uninstall. If recovery cannot safely finish, keep its files and contact the maintainer rather than deleting backups.
 

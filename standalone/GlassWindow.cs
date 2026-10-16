@@ -18,12 +18,16 @@ internal sealed class GlassWindow : Form
     readonly TextBox folder = new TextBox { ReadOnly=true };
     readonly Label status = new Label();
     readonly Label appUpdate = new Label();
-    readonly Button install = new Button { Text="Install" };
-    readonly Button uninstall = new Button { Text="Uninstall" };
-    readonly Button browse = new Button { Text="Browse..." };
+    readonly Button install = new WsgButton { Text="Install", Tag="primary" };
+    readonly Button uninstall = new WsgButton { Text="Uninstall" };
+    readonly Button browse = new WsgButton { Text="Browse..." };
+    readonly Button darkTheme=new WsgButton { Text="Dark", AccessibleName="Dark theme" };
+    readonly Button lightTheme=new WsgButton { Text="Light", AccessibleName="Light theme" };
     readonly CheckBox enabled = new CheckBox { Text="Enable glass-cockpit refresh fix" };
     readonly Timer timer = new Timer { Interval=1000 };
     readonly GlassSettingsPanel glass;
+    readonly Icon brandIcon;
+    readonly PictureBox brand;
     readonly System.Collections.Generic.Dictionary<string,Tuple<string,string>> fileHashes =
         new System.Collections.Generic.Dictionary<string,Tuple<string,string>>(StringComparer.OrdinalIgnoreCase);
     bool busy, refreshing;
@@ -33,29 +37,46 @@ internal sealed class GlassWindow : Form
     static readonly string[] Payload = { "dxgi.dll", "StandaloneGlassGraphics.dll", "StandaloneGlass.ini" };
     GlassWindow()
     {
+        try { WsgTheme.Light=File.ReadAllText(Path.Combine(Package,"Appearance.txt")).Trim()=="light"; }
+        catch(IOException) { WsgTheme.Light=false; } catch(UnauthorizedAccessException) { WsgTheme.Light=false; }
         Text="Standalone-DLSS-Glass-Cockpit-Refresh v" + global::ProductVersion.Value;
-        Font=new Font("Segoe UI",10); AutoScaleMode=AutoScaleMode.Dpi;
+        Font=new Font("Segoe UI",10); AutoScaleDimensions=new SizeF(96,96); AutoScaleMode=AutoScaleMode.Dpi;
+        BackColor=WsgTheme.Background; ForeColor=WsgTheme.Text;
+        brandIcon=WsgTheme.LoadIcon(); Icon=brandIcon;
+        brand=new PictureBox { Image=WsgTheme.LoadLogo(), SizeMode=PictureBoxSizeMode.Zoom, TabStop=false, AccessibleName="WeSimGlide logo" };
+        brand.SetBounds(18,18,48,48);
 #if GLASS_NO_AUTO_UPDATE
         Text += " (source build)";
 #endif
         ClientSize=new Size(660,610); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false;
         StartPosition=FormStartPosition.CenterScreen;
-        var title=new Label { Text="MSFS 2024 Â· Glass cockpit Â· Desktop and VR", Font=new Font(Font,FontStyle.Bold) };
-        title.SetBounds(18,16,540,28); folder.SetBounds(18,52,518,28); browse.SetBounds(546,50,96,30);
+        var title=new Label { Text="Glass Cockpit Refresh", Font=new Font("Segoe UI",18,FontStyle.Bold), AutoSize=false };
+        title.SetBounds(78,14,470,34);
+        var subtitle=new Label { Text="MSFS 2024  /  Desktop + VR", ForeColor=WsgTheme.Muted };
+        subtitle.SetBounds(80,48,400,24);
+        var folderLabel=new Label { Text="MSFS 2024 GAME FOLDER", Font=new Font("Segoe UI",8,FontStyle.Bold) };
+        folderLabel.SetBounds(18,84,520,18);
+        folder.SetBounds(18,106,518,28); browse.SetBounds(546,103,96,32);
         var about=new LinkLabel { Text="About", TextAlign=ContentAlignment.MiddleRight, AccessibleDescription="Open the mod website for instructions and troubleshooting" };
-        about.SetBounds(566,14,76,28);
+        about.SetBounds(566,15,76,26);
+        darkTheme.SetBounds(510,48,64,28); lightTheme.SetBounds(578,48,64,28);
+        darkTheme.Click += delegate { SelectAppearance(false); };
+        lightTheme.Click += delegate { SelectAppearance(true); };
         about.LinkClicked += delegate {
             try { Process.Start(new ProcessStartInfo("https://wesimglide.org/otherdata/tools/Standalone-DLSS-Glass-Cockpit-Refresh.html") { UseShellExecute=true }); }
             catch(Exception e) { MessageBox.Show(this,"Could not open the mod website.\n\n"+e.Message,Text); }
         };
-        status.SetBounds(18,91,625,30); install.SetBounds(18,130,130,32); uninstall.SetBounds(160,130,130,32);
-        enabled.SetBounds(20,181,610,32);
-        var note=new Label { Text="Start MSFS normally. Enable/disable applies during upscaling.\nUse official OFXR Bridge separately for frame generation." };
-        note.SetBounds(18,510,625,52);
-        appUpdate.SetBounds(18,570,625,32);
-        Controls.AddRange(new Control[] { title,about,folder,browse,status,install,uninstall,enabled,note,appUpdate });
+        status.SetBounds(18,141,625,24); install.SetBounds(18,172,130,34); uninstall.SetBounds(160,172,130,34);
+        enabled.SetBounds(20,223,610,30);
+        var note=new Label { Text="Start MSFS normally. Changes apply during upscaling.\nUse official OFXR Bridge separately for frame generation.", Font=new Font("Segoe UI",9) };
+        note.SetBounds(18,551,625,36);
+        appUpdate.Font=new Font("Segoe UI",8.5f);
+        appUpdate.SetBounds(18,589,625,20);
+        Controls.AddRange(new Control[] { brand,title,subtitle,folderLabel,about,darkTheme,lightTheme,folder,browse,status,install,uninstall,enabled,note,appUpdate });
+        subtitle.Tag=folderLabel.Tag=note.Tag=appUpdate.Tag="muted";
         glass = new GlassSettingsPanel(() => Ini, @"Local\StandaloneGlassTint");
-        glass.SetBounds(18, 226, 624, 260); Controls.Add(glass);
+        glass.SetBounds(18, 266, 624, 270); Controls.Add(glass); RefreshAppearance();
+        HandleCreated += delegate { WsgTheme.TitleBar(this); };
         browse.Click += delegate { using(var d=new FolderBrowserDialog { SelectedPath=Target,Description="Choose the folder containing FlightSimulator2024.exe (Xbox Content or Steam game folder)." }) {
             if(d.ShowDialog(this)!=DialogResult.OK) return;
             if(!File.Exists(Path.Combine(d.SelectedPath,"FlightSimulator2024.exe"))) { MessageBox.Show(this,"Choose the folder containing FlightSimulator2024.exe.",Text);return; }
@@ -73,7 +94,21 @@ internal sealed class GlassWindow : Form
         uninstall.Click += async delegate { await Setup(true); };
         timer.Tick += delegate { RefreshState(); };
         FormClosing += delegate(object sender,FormClosingEventArgs e) { if(busy) e.Cancel=true; };
-        FormClosed += delegate { timer.Dispose(); };
+        FormClosed += delegate { timer.Dispose(); brand.Image.Dispose(); brandIcon.Dispose(); };
+    }
+    void RefreshAppearance() {
+        BackColor=WsgTheme.Background; ForeColor=WsgTheme.Text;
+        WsgTheme.Apply(this); glass.ApplyTheme();
+        foreach(Control control in Controls) if(Equals(control.Tag,"muted"))control.ForeColor=WsgTheme.Muted;
+        status.ForeColor=WsgTheme.Mint;
+        WsgTheme.SelectButton(darkTheme,!WsgTheme.Light); WsgTheme.SelectButton(lightTheme,WsgTheme.Light);
+        if(IsHandleCreated)WsgTheme.TitleBar(this);
+        Invalidate(true);
+    }
+    void SelectAppearance(bool light) {
+        WsgTheme.Light=light; RefreshAppearance();
+        try { File.WriteAllText(Path.Combine(Package,"Appearance.txt"),light ? "light" : "dark"); }
+        catch(Exception e) { MessageBox.Show(this,"The appearance changed, but could not be saved.\n\n"+e.Message,Text); }
     }
     void RefreshState()
     {
@@ -229,7 +264,20 @@ internal sealed class GlassWindow : Form
                     if(form.install.Enabled || !form.status.Text.Contains("Remove the conflicting mod")) throw new Exception("Conflict state failed");File.Delete(other);
                     form.RefreshState(); form.appUpdate.Text="App update unavailable; current version kept. Checks again next launch.";
                     form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-10000,-10000);form.ShowInTaskbar=false;
-                    form.Show();Application.DoEvents();form.glass.SelfTest(args[2]);using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]); }
+                    form.Show();Application.DoEvents();form.glass.SelfTest(args[2]);
+                    byte[] themeIni=File.ReadAllBytes(form.Ini);
+                    foreach(bool light in new[]{true,false}) {
+                        (light ? form.lightTheme : form.darkTheme).PerformClick();
+                        if(WsgTheme.Light!=light || File.ReadAllText(Path.Combine(Package,"Appearance.txt"))!=(light ? "light":"dark"))throw new Exception("Appearance persistence failed");
+                        using(var reopened=new GlassWindow()) if(WsgTheme.Light!=light || reopened.BackColor!=form.BackColor)throw new Exception("Appearance restore failed");
+                        if(Convert.ToBase64String(themeIni)!=Convert.ToBase64String(File.ReadAllBytes(form.Ini)))throw new Exception("Appearance changed glass settings");
+                        for(int page=0;page<3;page++) {
+                            form.glass.SelectedIndex=page;Application.DoEvents();
+                            using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]+(light ? ".light-":".dark-")+page+".png"); }
+                        }
+                    }
+                    form.glass.SelectedIndex=0;
+                    using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]); }
                     return 0;
                 }
                 form.Shown += async delegate {

@@ -6,14 +6,24 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
-// Shared by both products. Only glass settings are written; no FG settings,
+// Only glass settings are written; no FG settings,
 // hotkeys, log viewers or report generation belong to this control.
-internal sealed class GlassSettingsPanel : TabControl
+internal sealed class GlassSettingsPanel : UserControl
 {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     static extern uint GetPrivateProfileInt(string section, string key, int fallback, string path);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern bool WritePrivateProfileString(string section, string key, string value, string path);
+    readonly System.Collections.Generic.List<Panel> pages = new System.Collections.Generic.List<Panel>();
+    readonly System.Collections.Generic.List<Button> tabs = new System.Collections.Generic.List<Button>();
+    int selectedIndex;
+    internal int SelectedIndex {
+        get { return selectedIndex; }
+        set {
+            selectedIndex=value;
+            for(int i=0;i<pages.Count;i++) { pages[i].Visible=i==value; WsgTheme.SelectButton(tabs[i],i==value); }
+        }
+    }
     readonly Func<string> ini;
     readonly Dictionary<string, NumericUpDown> values = new Dictionary<string, NumericUpDown>();
     readonly CheckBox extra = new CheckBox { Text = "Extra (up to 100)", AutoSize = true };
@@ -29,6 +39,7 @@ internal sealed class GlassSettingsPanel : TabControl
 
     internal GlassSettingsPanel(Func<string> settingsPath, string tintEventName)
     {
+        BackColor=WsgTheme.Background; Font=new Font("Segoe UI",10);
         ini = settingsPath;
         eventName = tintEventName + (Array.IndexOf(Environment.GetCommandLineArgs(), "--self-test") >= 0
             ? ".test." + System.Diagnostics.Process.GetCurrentProcess().Id : "");
@@ -80,11 +91,25 @@ internal sealed class GlassSettingsPanel : TabControl
         };
     }
 
-    internal TabPage Page(string name) { var p = new TabPage(name) { BackColor = SystemColors.Control }; TabPages.Add(p); return p; }
+    Panel Page(string name) {
+        int index=pages.Count;
+        var button=new WsgButton { Text=name, Left=index*210, Top=0, Width=204, Height=34, TabIndex=index };
+        WsgTheme.StyleButton(button,false);
+        button.Click += delegate { SelectedIndex=index; };
+        var page=new Panel { Left=0,Top=44,Width=624,Height=226,BackColor=WsgTheme.Panel,TabIndex=3+index,Visible=index==0 };
+        pages.Add(page);tabs.Add(button);Controls.Add(button);Controls.Add(page);
+        WsgTheme.SelectButton(button,index==0);
+        return page;
+    }
+    internal void ApplyTheme() {
+        BackColor=WsgTheme.Background;
+        foreach(var page in pages) WsgTheme.Apply(page);
+        SelectedIndex=selectedIndex;
+    }
     static string Section(string key) { return key == "extra_smoothing" || key == "line_smoothing" || key == "glass_strength" || key == "jitter_positive" ? "cockpit" : "experimental"; }
     static void Label(Control page, string text, int y, int height) { page.Controls.Add(new Label { Text = text, Left = 16, Top = y, Width = 565, Height = height }); }
     Button Reset(Control page, string text, int y, Action action) {
-        var button = new Button { Text = text, Left = 16, Top = y, Width = 195, Height = 32 };
+        var button = new WsgButton { Text = text, Left = 16, Top = y, Width = 195, Height = 32 };
         page.Controls.Add(button); button.Click += delegate { action(); }; return button;
     }
     void Number(Control page, string text, string key, int maximum, int fallback, int y, string help) {
@@ -103,6 +128,7 @@ internal sealed class GlassSettingsPanel : TabControl
     internal void RefreshValues(bool available) {
         refreshing = true;
         Enabled = available;
+        SelectedIndex=selectedIndex;
         extra.Checked = available && GetPrivateProfileInt("cockpit", "extra_smoothing", 0, ini()) != 0;
         values["line_smoothing"].Maximum = extra.Checked ? 100 : 50;
         dark.Checked = available && GetPrivateProfileInt("experimental", "dark_screen_fix", 0, ini()) != 0;

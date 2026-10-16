@@ -4,6 +4,8 @@ Glass Cockpit DLSS Fix for **Microsoft Flight Simulator 2024**, with the require
 
 **Source-available for noncommercial use.** You may fork, modify and share the original code for the purposes permitted by [PolyForm Noncommercial 1.0.0](LICENSE.md). Commercial use of that code is not granted. Upstream glass-fix, ReShade and dependency licenses remain intact; see [NOTICE.md](NOTICE.md). This distinction applies even though this repository is public.
 
+The v0.1.10 control window adopts WeSimGlide's Dark/Light themes and embedded logo, with the same compact layout and all existing settings/reset controls.
+
 ## Use the mod
 
 For the official prebuilt app, use the [WeSimGlide download and instructions page](https://wesimglide.org/otherdata/tools/Standalone-DLSS-Glass-Cockpit-Refresh.html). See [installation and settings](standalone/README.md), [testing guidance](standalone/TESTING.md), and [security behavior](standalone/SECURITY.md).

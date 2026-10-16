@@ -16,7 +16,7 @@ RUNNER=WORK/'runner.exe'
 compile_cs(RUNNER,ROOT/'tests/app_update_runner.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'build/standalone/control/ProductVersion.cs')
 # Same production window/updater sources with a disposable test verification key.
 TEST_WINDOW=WORK/'current.exe'
-compile_cs(TEST_WINDOW,ROOT/'standalone/GlassWindow.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'tools/GlassSettingsPanel.cs',ROOT/'build/standalone/control/ProductVersion.cs',win=True)
+compile_cs(TEST_WINDOW,ROOT/'standalone/GlassWindow.cs',ROOT/'standalone/WsgTheme.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'tools/GlassSettingsPanel.cs',ROOT/'build/standalone/control/ProductVersion.cs',win=True)
 fake=WORK/'future.cs'
 fake.write_text('using System;using System.IO;using System.Reflection;\n[assembly:AssemblyVersion("'+NEXT+'.0")]\n[assembly:AssemblyFileVersion("'+NEXT+'.0")]\nclass Future { static void Main() { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"reopened.txt"),"'+NEXT+'"); } }')
 compile_cs(WORK/'future.exe',fake,win=True)
@@ -41,7 +41,7 @@ def fixture():
     count+=1;p=WORK/('case-%02d'%count);p.mkdir()
     for n,b in old.items():
         target=p/n;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(b)
-    for n,b in {'SimulatorDirectory.txt':b'fixture path','StandaloneGlass.saved.ini':b'user preferences','notes.txt':b'user data','ofxr_bridge.ini':b'unrelated OFXR settings'}.items():(p/n).write_bytes(b)
+    for n,b in {'Appearance.txt':b'light','SimulatorDirectory.txt':b'fixture path','StandaloneGlass.saved.ini':b'user preferences','notes.txt':b'user data','ofxr_bridge.ini':b'unrelated OFXR settings'}.items():(p/n).write_bytes(b)
     return p
 def snap(p):return {f.relative_to(p).as_posix():f.read_bytes() for f in p.rglob('*') if f.is_file() and '.app-update' not in f.parts}
 def archive(data):

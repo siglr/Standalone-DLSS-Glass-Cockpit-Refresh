@@ -5,7 +5,7 @@ ROOT=Path(__file__).resolve().parents[1]
 CSC=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 def compile_cs(out,*sources,win=False,defines=()):
  env=os.environ.copy();env['LIB']=''
- subprocess.run([str(CSC),'/nologo','/platform:x64','/target:'+('winexe' if win else 'exe'),'/out:'+str(out),*['/define:'+value for value in defines],'/reference:System.Security.dll','/reference:System.Web.Extensions.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll',*map(str,sources)],check=True,env=env)
+ subprocess.run([str(CSC),'/nologo','/platform:x64','/target:'+('winexe' if win else 'exe'),'/out:'+str(out),*(['/resource:'+str(ROOT/'standalone/assets/WeSimGlide.ico')+',WeSimGlide.ico','/resource:'+str(ROOT/'standalone/assets/WeSimGlide.png')+',WeSimGlide.png'] if any(Path(source).name=='GlassWindow.cs' for source in sources) else []),*['/define:'+value for value in defines],'/reference:System.Security.dll','/reference:System.Web.Extensions.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll',*map(str,sources)],check=True,env=env)
 class Signing:
  def __init__(self,work):
   self.work=work;self.signer=work/'signer.exe';self.key=work/'keys/test-key.dpapi';self.public=work/'TestPublicKey.cs'

@@ -19,3 +19,5 @@ Third-party code is **not relicensed** under PolyForm. Files under `vendor/`, in
 Preserve all applicable copyright, license and attribution notices in forks and distributions. The root license does not imply third-party endorsement or grant rights to upstream names, logos or trademarks. Original upstream identities and pins are recorded in standalone/upstream-lock.json and standalone/UPSTREAM.md. The selected source is vendored directly; a normal clone does not require private dependencies or submodule access.
 
 The original glass add-on's THIRD_PARTY_NOTICES.md is retained for attribution. Its submodule paths describe that upstream project; in this repository the dependency paths are those listed above. No OFXR code is included. OFXR may be used separately by users under its own terms.
+
+The WeSimGlide logo and app icon in `standalone/assets/` are existing project branding supplied by the maintainer. Their inclusion does not grant trademark rights or permission to imply that a fork is an official WeSimGlide release.
