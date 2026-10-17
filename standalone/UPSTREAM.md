@@ -1,19 +1,26 @@
-# Glass v0.8.3 integration
+# Glass v1.0.0 integration
 
-Source: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases/tag/v0.8.3
-Commit: e7f4ff574ae8684f738f10c8d48574e74714830c.
+Source: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases/tag/v1.0.0
+Commit: 9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa.
 
-Selected changes: optional dark-screen correction (OFF), UV seam correction (ON), correct selection among extra DLSS passes, desktop frame-overlap fallback, and optional Extra line smoothing (OFF). Normal smoothing remains 35. The frame-overlap fix is desktop-only; upstream has not provided its VR equivalent yet.
+Modified/unofficial Standalone Glass Graphics, based on Glass Cockpit DLSS Fix by IFreemz (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix).
 
-The required ReShade D3D12 interception stays built in. No separate ReShade install or menu, capture/report feature, or keyboard shortcuts are added. This package includes no OFXR engine or OpenXR registration; official OFXR remains separate and its settings are untouched.
+Imported the v1.0.0 shaders, per-mesh brightness variants, 32-entry descriptor ring, repeated desktop upscale recovery, VR exhausted-view recovery, stable edges, full-size sampling, glass filtering, optional temporal and Gaussian smoothing, depth occlusion, texture replacement resets, wrapped UV/iFly draw handling and NGX hook reattachment.
+
+Author defaults are retained: smoothing 35, strength 100, normal jitter; seam fix/stable edges/full-size sampling/occlusion ON; other experimental options OFF or zero. Existing INI files are preserved; new keys fall back to these defaults. The window exposes the settings and resets without a ReShade UI. Temporal and soft smoothing are mutually exclusive.
 
 ## Local adaptations
 
-- Preserve guarded enable/session transitions and upscaler-driven desktop/stereo processing.
-- Preserve native upscaled pixels until a newly accepted display has current glass residuals, preventing a first-frame flat-glare flash reproduced offline.
-- Upstream counts display presents for expiry. This host ticks per upscaler call, so use monotonic time: 2 seconds for largest-output selection and 135 ms for desktop map reuse. Reset output maxima after expiry for resolution changes. The pending-view fallback never applies to stereo maps.
-- No unfenced GPU diagnostic readbacks or capture worker/readback subsystem.
-- External live controls poll every 250 ms under the recording guard. Green tint uses a temporary event and ends when the control window closes; it is not saved to the INI. Each group has its own reset button.
-- Direct Update preserves the whole installed INI and original third-party backups. An interrupted replacement can recover through Update or Uninstall. No separate updater service or version manager.
+- Minimal ReShade D3D12/DXGI host remains built in. No OFXR engine, OpenXR registration, OFXR settings access or keyboard shortcuts.
+- Settings polling and maintenance run from both upscaler calls and native presents, so late-loaded or displaced NGX hooks can be found again. Native Present/Present1 provides actual frame boundaries for v1.0.0 VR view tracking. Test presents do not count; nested Present calls count once. Native swapchains are retained.
+- Guarded enable epochs retained. Temporal history is invalidated across enable epochs and after a 135 ms gap. Largest-output selection expires after two seconds; desktop map reuse expires after 135 ms. VR recovery uses the author's eight-present window, so both eyes share the same frame lifetime even during slow frames.
+- Preserve native upscaled pixels until current glass residuals exist, avoiding the first accepted frame's flat-glare flash.
+- No capture/report/pixel-probe export, capture shaders or unfenced diagnostic readbacks in the built engine. Original upstream panel/build documentation is retained as reference and is not part of the embedded control app.
+- External controls poll every 250 ms under the recording guard. Green tint is a temporary event, never a persisted key binding.
+- Direct Update preserves the whole installed INI and original uninstall backups. Engine license and corresponding source are documented in ENGINE-LICENSE.md.
 
-Offline tests do not establish compatibility with every aircraft or headset. Test official OFXR separately with its own controls. See VALIDATION.md for results and limitations.
+Offline tests cannot establish every aircraft/headset combination; real MSFS/VR validation is still needed. See VALIDATION.md.
+
+## Further optimization work
+
+The upstream descriptor ring is now 32 entries. Explicit GPU completion tracking would be needed before safely recycling a smaller ring or freeing retired temporal histories during repeated resolution changes. Temporal history is optional and allocates two output-resolution slices per view (24 bytes per output pixel per view); keep it off by default. These are follow-up opportunities, not a change to OFXR's Lower VRAM setting or a promise of lower VRAM usage in this release.

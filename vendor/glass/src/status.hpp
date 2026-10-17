@@ -9,6 +9,13 @@ struct Experimental {
     int detail_clamp = 0, edge_fade = 0, angle_softening = 0, edge_stretch = 0; // percent / hundredths of a render pixel
     int dark_screens = 0; // dark screen fix on/off
     int seam_fix = 1; // UV seam fix on/off (on by default)
+    int temporal_aa = 0; // temporal anti-aliasing on/off
+    int soft_smoothing = 0; // soft-edged (Gaussian) line smoothing on/off
+    int stable_edges = 1; // stable screen edges on/off (on by default)
+    int full_size = 1; // full-size sampling on/off (on by default; off = the game's mip levels)
+    int calm_glass = 0; // calm glass at symbols on/off (off by default; no glass detail from the upscaler next to symbols)
+    int edge_trim = 0; // hundredths of a render pixel of each screen's edge left to the upscaler (the reverse of edge_stretch)
+    int occlusion_check = 1; // occlusion check on/off (on by default; screen pixels with something in front of them left to the upscaler)
     bool operator==(const Experimental&) const = default;
 };
 

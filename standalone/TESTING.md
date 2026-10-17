@@ -1,6 +1,6 @@
 # Tester quick start
 
-This experimental package integrates Glass Cockpit DLSS Fix v0.8.3 with the ReShade components it requires. It contains no frame-generation engine. No separate ReShade install is needed.
+This experimental package integrates a modified/unofficial build based on Glass Cockpit DLSS Fix by IFreemz v1.0.0 with the ReShade components it requires. It contains no frame-generation engine. No separate ReShade install is needed.
 
 1. Extract the entire ZIP into a writable folder. Keep all its files/subfolders together.
 2. Close MSFS. For v0.1.3 or earlier, extract the complete new ZIP over your mod folder once with the control window closed. From v0.1.4 onward, the app checks for updates at launch and reopens itself after updating. If it says Mod update available, close MSFS and click Update; no uninstall is needed. Remove a different glass-cockpit add-on before a fresh installation to avoid duplicates.
@@ -22,7 +22,7 @@ Other headsets/runtimes are not blocked by a Pimax-specific check, but have not 
 
 Keep the same scene and graphics settings between comparisons. Actual headset results are needed; an offline test pass is not proof of headset delivery or frame-generation quality.
 
-Updates preserve your glass settings and leave official OFXR settings untouched. New author defaults are UV seam fix ON, dark screen fix OFF, smoothing 35 and Extra OFF. The v0.8.3 frame-overlap flicker fix applies to monitors; its VR equivalent is pending upstream.
+Updates preserve your glass settings and leave official OFXR settings untouched. New author defaults are UV seam fix ON, dark screen fix OFF, smoothing 35 and Extra OFF. The v1.0.0 release also adds VR view-count recovery. New experimental defaults are stable edges, full-size sampling and occlusion check ON; temporal anti-aliasing, soft smoothing and calm glass OFF; edge trim 0.
 
 App updates leave your installed glass settings and official OFXR settings alone. The app remains usable if the update server is offline. App-only updates need no MSFS restart; new simulator DLLs require MSFS to be closed while you click Update. See README.md for recovery and manual update instructions.
 
@@ -35,3 +35,6 @@ In v0.1.8, click About at the top right. It should open the public mod page in y
 In v0.1.9, setup runs natively without PowerShell; elevation is offered only if permissions require it. Automatic updates require signed releases and inventories. The first transition from an older app uses that older app's HTTPS/checksum verification. Never disable antivirus for this test: leave detected files blocked while vendor review is ongoing. The website can compare your ZIP's SHA-256 locally; a match is not an antivirus clearance.
 
 For manual acceptance, confirm normal launch/auto-detection, install/update/uninstall with MSFS closed, existing settings and original backups preserved, and a normal flight with official OFXR unchanged. Offline tests cannot establish antivirus clearance or replace an actual headset test. See SECURITY.md.
+
+
+For v1.0.0, first compare the same flight with existing glass settings. Check both eyes while looking around, display brightness when switching panels on, and objects passing in front of screens. Optional temporal anti-aliasing uses extra VRAM and remains off by default. Keep OFXR settings fixed for this comparison. Existing users should update the external app, close MSFS and click Update once; no uninstall/reinstall is needed. The graphics engine is GPL-3.0-only with upstream NOTICE terms, and the separate app remains noncommercial; see ENGINE-LICENSE.md. Distribute the matching source archive with the binary or provide it alongside the download.

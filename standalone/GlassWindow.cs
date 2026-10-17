@@ -48,7 +48,7 @@ internal sealed class GlassWindow : Form
 #if GLASS_NO_AUTO_UPDATE
         Text += " (source build)";
 #endif
-        ClientSize=new Size(660,610); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false;
+        ClientSize=new Size(660,634); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false;
         StartPosition=FormStartPosition.CenterScreen;
         var title=new Label { Text="Glass Cockpit Refresh", Font=new Font("Segoe UI",18,FontStyle.Bold), AutoSize=false };
         title.SetBounds(78,14,470,34);
@@ -71,7 +71,14 @@ internal sealed class GlassWindow : Form
         var note=new Label { Text="Start MSFS normally. Changes apply during upscaling.\nUse official OFXR Bridge separately for frame generation.", Font=new Font("Segoe UI",9) };
         note.SetBounds(18,551,625,36);
         appUpdate.Font=new Font("Segoe UI",8.5f);
-        appUpdate.SetBounds(18,589,625,20);
+        var credit=new LinkLabel { Text="Based on Glass Cockpit DLSS Fix by IFreemz · modified/unofficial", Font=new Font("Segoe UI",8.5f), AccessibleDescription="GPL-3 graphics engine attribution and original source" };
+        credit.SetBounds(18,589,625,20);
+        credit.LinkClicked += delegate {
+            try { Process.Start(new ProcessStartInfo("https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix") { UseShellExecute=true }); }
+            catch(Exception e) { MessageBox.Show(this,e.Message,Text); }
+        };
+        Controls.Add(credit);
+        appUpdate.SetBounds(18,613,625,20);
         Controls.AddRange(new Control[] { brand,title,subtitle,folderLabel,about,darkTheme,lightTheme,folder,browse,status,install,uninstall,enabled,note,appUpdate });
         subtitle.Tag=folderLabel.Tag=note.Tag=appUpdate.Tag="muted";
         glass = new GlassSettingsPanel(() => Ini, @"Local\StandaloneGlassTint");

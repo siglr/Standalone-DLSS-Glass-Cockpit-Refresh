@@ -83,3 +83,19 @@ Release and source-build control windows compile. The native installer/window su
 The build from this repository passes **28/28 graphics tests** in 123.84 seconds. Renderer source and defaults were not changed by this UI update; compiled artifacts can differ from the historical v0.1.9 download. The existing official v0.1.9 ZIP successfully upgrades to the signed v0.1.10 package in an isolated fixture, preserving saved settings and clearing staging. Signatures and inventories verify with the established production public key.
 
 The signed package is prepared locally; no server upload or new GitHub release is implied. Real MSFS, Pimax and OFXR files/settings are not changed by these checks. High-DPI/multiple-monitor and high-contrast appearance outside the tested desktop remain manual acceptance checks.
+
+
+## v1.0.0 / Glass v1.0.0 (2026-10-17)
+
+Release build succeeds on this RTX 4090 PC. The expanded graphics suite passes **31/31** (184.68 seconds), including live application of all 17 values, missing-key author defaults, repeated desktop FG upscales, exhausted VR view counts, and motion regressions. The motion check covers 13 scenarios: temporal/Gaussian smoothing, occlusion and its disabled negative control, dim shared textures, power-on, texture replacement, blank displays and layered windows. D3D12 debug errors remain failures. Occluder error falls from 0.1655 with the check off to 0.0004 with it on; these are synthetic normalized image errors, not headset performance measurements.
+
+A new exhausted-view test initially rejected the second eye under the inherited 135 ms expiry. The VR fallback now uses upstream's eight-present window and both eyes pass. A native-present test initially released swapchain GPU resources without waiting; an explicit completion fence fixed the fixture teardown. The native Present/Present1 probes verify exactly one frame count, exclusion of test presents and (in a final targeted 3/3 pass) maintenance polling without any upscaler calls, which is needed for late-loaded/displaced-hook recovery. The full suite preceded that final maintenance-only addition; the affected three probes were rebuilt and rerun afterward.
+
+Native installer/UI suite: **44 operations and 18 discovery checks pass**, including preservation of independent OFXR settings and the entire installed INI, original proxy restoration, rollback and recovery. Settings/reset controls and exclusive temporal/soft smoothing were exercised; the experimental tab preview was inspected. Updater suite: **50 isolated fixtures pass**. Development-package verification confirms signed installation/removal and disabled official updates for source builds.
+
+No real simulator or headset files were changed by these checks. Actual MSFS aircraft, Pimax VR and independent official OFXR interoperability remain user acceptance tests. No capture/report UI, capture shader/export or keyboard shortcuts are included. See ENGINE-LICENSE.md for the GPL engine/noncommercial app split and matching-source distribution.
+
+
+The actual production-signed v0.1.10 ZIP upgrades to the v1.0.0 candidate through the production updater in an isolated folder. Its inventory and new GPL notices verify; a subsequent fake-game DLL update preserves the old INI and independent OFXR fixture settings, and Uninstall restores the original third-party proxy. Source and release signatures/checksums are verified during packaging. This is an offline archive-to-archive test, not a live server update or an MSFS flight.
+
+The final v1.0.0 rebuild passes the complete graphics suite again: **31/31 in 189.70 seconds**, including the present-maintenance change. The signed v0.1.10-to-v1.0.0 package upgrade also passes. Release preparation caught stale generated executable version metadata; VERSION is now a CMake configure dependency so future version changes regenerate it automatically.

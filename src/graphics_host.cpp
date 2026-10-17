@@ -21,6 +21,7 @@ extern "C" void UvrGlassTick();
 extern "C" void UvrGlassPollSettings(const wchar_t* path);
 extern "C" bool UvrGlassEnabled();
 extern "C" void UvrGlassSetEnabled(bool value);
+extern "C" void UvrGlassPresent(ID3D12Device* device);
 namespace {
 std::once_flag initialize_once;
 std::once_flag glass_once;
@@ -138,3 +139,39 @@ UVR_API uint64_t UvrAcquireGlassWork() {
  return 0;
 }
 UVR_API void UvrReleaseGlassWork() { sessions_mutex.unlock_shared(); }
+
+namespace {
+thread_local unsigned present_depth = 0;
+struct PresentScope {
+ explicit PresentScope(IDXGISwapChain* chain, UINT flags) {
+  if (present_depth++ || (flags & DXGI_PRESENT_TEST)) return;
+  ID3D12Device* device = nullptr;
+  if (SUCCEEDED(chain->GetDevice(IID_PPV_ARGS(&device)))) {
+   UvrGlassPresent(UvrNativeDevice(device));
+   device->Release();
+  }
+ }
+ ~PresentScope() { --present_depth; }
+};
+HRESULT STDMETHODCALLTYPE GlassPresent(IDXGISwapChain* chain, UINT interval, UINT flags) {
+ const auto original = reshade::hooks::call(GlassPresent, reshade::hooks::vtable_from_instance(chain) + 8);
+ PresentScope scope(chain, flags);
+ return original(chain, interval, flags);
+}
+HRESULT STDMETHODCALLTYPE GlassPresent1(IDXGISwapChain1* chain, UINT interval, UINT flags, const DXGI_PRESENT_PARAMETERS* parameters) {
+ const auto original = reshade::hooks::call(GlassPresent1, reshade::hooks::vtable_from_instance(chain) + 22);
+ PresentScope scope(chain, flags);
+ return original(chain, interval, flags, parameters);
+}
+}
+void UvrObserveSwapchain(IDXGISwapChain* chain) {
+ if (!chain) return;
+ static std::mutex mutex;
+ std::lock_guard lock(mutex);
+ reshade::hooks::install("Glass frame boundary: Present", reshade::hooks::vtable_from_instance(chain), 8, reinterpret_cast<void*>(&GlassPresent));
+ IDXGISwapChain1* newer = nullptr;
+ if (SUCCEEDED(chain->QueryInterface(IID_PPV_ARGS(&newer)))) {
+  reshade::hooks::install("Glass frame boundary: Present1", reshade::hooks::vtable_from_instance(newer), 22, reinterpret_cast<void*>(&GlassPresent1));
+  newer->Release();
+ }
+}

@@ -304,7 +304,8 @@ template <typename T>
 static void init_swapchain_proxy(IDXGIFactory *factory, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, T *&swapchain, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
 {
 	// Keep the native desktop swapchain; only the device/queue argument needs unwrapping.
-
+	if (direct3d_version == reshade::api::device_api::d3d12)
+		UvrObserveSwapchain(swapchain);
 }
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)

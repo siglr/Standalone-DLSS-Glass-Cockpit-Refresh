@@ -99,7 +99,7 @@ constexpr UINT render_w = 1280, render_h = 720, output_w = 1920, output_h = 1080
 const std::array<float, 3> gain{1.6f, 1.2f, 0.9f}, offset{0.02f, 0.01f, 0.03f};
 
 struct Params final : NVSDK_NGX_Parameter {
-    ID3D12Resource *colour = nullptr, *output = nullptr;
+    ID3D12Resource *colour = nullptr, *output = nullptr, *depth = nullptr;
     float jitter_x = 0, jitter_y = 0;
     void Set(const char*, unsigned long long) override {}
     void Set(const char*, float) override {}
@@ -126,7 +126,8 @@ struct Params final : NVSDK_NGX_Parameter {
         return NVSDK_NGX_Result_Success;
     }
     NVSDK_NGX_Result Get(const char* key, ID3D12Resource** value) const override {
-        *value = !std::strcmp(key, NVSDK_NGX_Parameter_Color) ? colour : !std::strcmp(key, NVSDK_NGX_Parameter_Output) ? output : nullptr;
+        *value = !std::strcmp(key, NVSDK_NGX_Parameter_Color) ? colour : !std::strcmp(key, NVSDK_NGX_Parameter_Output) ? output
+            : !std::strcmp(key, NVSDK_NGX_Parameter_Depth) ? depth : nullptr;
         return *value ? NVSDK_NGX_Result_Success : NVSDK_NGX_Result_FAIL_InvalidParameter;
     }
     NVSDK_NGX_Result Get(const char* key, void** value) const override {
@@ -141,7 +142,7 @@ struct Constants {
     std::array<std::array<float, 4>, 17> object{};
 };
 // Display quad turned 35 degrees around Y, 2 units in front of a 60-degree 16:9 camera (perspective-correct UVs).
-static Constants constants(float shift) {
+static Constants constants(float shift, float scale = 1.0f) {
     using M = std::array<std::array<float, 4>, 4>;
     auto multiply = [](const M& a, const M& b) {
         M r{};
@@ -149,7 +150,7 @@ static Constants constants(float shift) {
         return r;
     };
     const float angle = 0.61f, c = std::cos(angle), sn = std::sin(angle);
-    const M world{{{c, 0, -sn, 0}, {0, 1, 0, 0}, {sn, 0, c, 0}, {shift, 0, 2.0f, 1}}};
+    const M world{{{c * scale, 0, -sn * scale, 0}, {0, scale, 0, 0}, {sn, 0, c, 0}, {shift * scale, 0, 2.0f, 1}}};
     const float ys = 1.0f / std::tan(0.5236f), xs = ys / (16.0f / 9.0f), zn = 0.1f, zf = 100.0f;
     const M projection{{{xs, 0, 0, 0}, {0, ys, 0, 0}, {0, 0, zf / (zf - zn), 1}, {0, 0, -zn * zf / (zf - zn), 0}}};
     const auto view_projection = multiply(world, projection);
@@ -281,6 +282,7 @@ int main(int argc, char** argv) {
         bool nvidia_features = false, dark_glare = false, settings_live = false, extra_pass = false, uv_seam = false, seam_off = false;
         bool toggle_cockpit = false, fit_blank = false, fit_mismatch = false;
         bool hotpatch = false, bench = false, nested = false, optiscaler_fsr = false, ngx_proxy = false;
+        bool motion = false, fg_repeat = false, vr_recovery = false;
         for (int i = 1; i < argc; ++i) {
             fsr |= !std::strcmp(argv[i], "--fsr"); vr |= !std::strcmp(argv[i], "--vr"); screen_t0 |= !std::strcmp(argv[i], "--screen-t0");
             reload |= !std::strcmp(argv[i], "--reload");
@@ -296,8 +298,11 @@ int main(int argc, char** argv) {
             toggle_cockpit |= !std::strcmp(argv[i], "--toggle-cockpit");
             hotpatch |= !std::strcmp(argv[i], "--hotpatch"); bench |= !std::strcmp(argv[i], "--bench");
             nested |= !std::strcmp(argv[i], "--nested");
+            vr_recovery |= !std::strcmp(argv[i], "--vr-recovery");
+            fg_repeat |= !std::strcmp(argv[i], "--fg-repeat");
             optiscaler_fsr |= !std::strcmp(argv[i], "--optiscaler-fsr");
             ngx_proxy |= !std::strcmp(argv[i], "--ngx-proxy");
+            motion |= !std::strcmp(argv[i], "--motion");
         }
         if (hotpatch) redirect_evaluate_like_mfg_unlock();
         struct FeatureProbe { const uint8_t* entry; std::array<uint8_t,16> before; };
@@ -317,6 +322,7 @@ int main(int argc, char** argv) {
         }
 #ifdef UVR_GLASS_STANDALONE
         // This file is next to the inert fixture, never in a real game folder.
+        DeleteFileW((here / UVR_SETTINGS_FILE).c_str());
         require(WritePrivateProfileStringW(L"cockpit",L"enabled",L"1",(here / UVR_SETTINGS_FILE).c_str()), "fixture settings write failed");
 #endif
         if (screen_t0) std::printf("display: variant with the screen texture in t0\n");
@@ -376,6 +382,11 @@ int main(int argc, char** argv) {
         UvrNativeDevice(device.Get())->QueryInterface(IID_PPV_ARGS(&diagnostics));
         const auto addon = GetModuleHandleW(UVR_GRAPHICS_DLL);
         require(addon != nullptr, "overlay add-on not loaded by ReShade");
+        const auto read_settings = reinterpret_cast<void (*)(int*)>(GetProcAddress(addon, "GlassFixReadSettings"));
+        require(read_settings != nullptr, "settings export missing");
+        int authored[17]{}; read_settings(authored);
+        const int defaults[17]{1,35,100,0,0,0,0,0,0,1,0,0,1,1,0,0,1};
+        for (int i=0;i<17;++i) require(authored[i] == defaults[i], "missing INI key did not use author default");
         const auto set_jitter = reinterpret_cast<void (*)(bool)>(GetProcAddress(addon, "GlassFixJitterPositive"));
         const auto evaluate = reinterpret_cast<NgxEvaluate>(GetProcAddress(GetModuleHandleW(L"_nvngx.dll"), "NVSDK_NGX_D3D12_EvaluateFeature"));
         require(set_jitter && evaluate, "exports missing");
@@ -393,6 +404,8 @@ int main(int argc, char** argv) {
         UINT64 fence_value = 0;
         const auto cost_tick = reinterpret_cast<void (*)(ID3D12CommandQueue*)>(GetProcAddress(addon, "GlassFixCostTick"));
         require(cost_tick != nullptr, "exports missing");
+        const auto frame_boundary = reinterpret_cast<void (*)()>(GetProcAddress(addon, "GlassFixFrameBoundary"));
+        require(frame_boundary != nullptr, "frame boundary export missing");
         auto submit = [&] {
             check(list->Close()); ID3D12CommandList* lists[]{list.Get()}; queue->ExecuteCommandLists(1, lists);
             check(queue->Signal(fence.Get(), ++fence_value));
@@ -405,11 +418,11 @@ int main(int argc, char** argv) {
 #endif
         };
 
-        // Root signature shaped like the game's: VS b0-b2, PS b1/b3, SRV table t0-t1, static s1.
+        // Root signature shaped like the game's: VS b0-b2 (b2 also PS: per-instance brightness), PS b1/b3, SRV table t0-t1, static s1.
         std::array<D3D12_ROOT_PARAMETER, 6> params{};
         for (UINT i = 0; i < 5; ++i) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            params[i].ShaderVisibility = i < 3 ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL;
+            params[i].ShaderVisibility = i == 2 ? D3D12_SHADER_VISIBILITY_ALL : i < 3 ? D3D12_SHADER_VISIBILITY_VERTEX : D3D12_SHADER_VISIBILITY_PIXEL;
             params[i].Descriptor.ShaderRegister = i < 3 ? i : i == 3 ? 1 : screen_t0 ? 4 : 3; // variant: material in b4
         }
         D3D12_DESCRIPTOR_RANGE range{D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, 0};
@@ -447,29 +460,93 @@ int main(int argc, char** argv) {
         ComPtr<ID3D12PipelineState> reference_pso; check(device->CreateGraphicsPipelineState(&rd, IID_PPV_ARGS(&reference_pso)));
         rd.VS = {reference_vs_eye1.data(), reference_vs_eye1.size()};
         ComPtr<ID3D12PipelineState> reference_pso_eye1; check(device->CreateGraphicsPipelineState(&rd, IID_PPV_ARGS(&reference_pso_eye1)));
+        // --motion: the reference drawn 16 times at sub-pixel offsets and summed (the screen filtered over each pixel's area).
+        auto sum_desc = rd; sum_desc.VS = {reference_vs.data(), reference_vs.size()}; sum_desc.DepthStencilState.DepthEnable = FALSE;
+        for (auto& b : sum_desc.BlendState.RenderTarget) { b.BlendEnable = TRUE; b.DestBlend = b.DestBlendAlpha = D3D12_BLEND_ONE; }
+        ComPtr<ID3D12PipelineState> accumulate_pso; check(device->CreateGraphicsPipelineState(&sum_desc, IID_PPV_ARGS(&accumulate_pso)));
 
         // Mesh, constants.
-        std::array<Vertex, 7> vertices{};
+        // Vertices 1-6: the display quad; 7-12 and 13-18: its top and bottom halves, each showing a whole texture (join test).
+        std::array<Vertex, 85> vertices{};
         const float positions[6][2]{{-0.7f, 0.7f}, {0.7f, 0.7f}, {-0.7f, -0.7f}, {-0.7f, -0.7f}, {0.7f, 0.7f}, {0.7f, -0.7f}};
+        for (size_t half = 0; half < 3; ++half)
+            for (size_t i = 0; i < 6; ++i) {
+                auto& v = vertices[half * 6 + i + 1];
+                const float top = half == 2 ? 0.0f : 0.7f, bottom = half == 1 ? 0.0f : -0.7f;
+                const float y = positions[i][1] > 0 ? top : bottom;
+                v.position[0] = positions[i][0]; v.position[1] = y; v.position[2] = 0.4f; v.position[3] = 1;
+                v.tangent[0] = v.tangent[3] = v.normal[2] = 1;
+                v.uv[0] = (positions[i][0] + 0.7f) / 1.4f; v.uv[1] = (top - y) / (top - bottom);
+                if (uv_seam && half == 0) v.uv[0] = v.uv[0] * 0.3f + (i >= 3 ? 0.7f : 0.0f);
+                std::fill(std::begin(v.color), std::end(v.color), 1.0f);
+            }
+        // Inset test: the quad showing only part of its texture, its edges in the middle of the texture (like the E-Jet
+        // clock's windows, cut-outs of one texture): vertices 31-36.
         for (size_t i = 0; i < 6; ++i) {
-            auto& v = vertices[i + 1];
-            v.position[0] = positions[i][0]; v.position[1] = positions[i][1]; v.position[2] = 0.4f; v.position[3] = 1;
-            v.tangent[0] = v.tangent[3] = v.normal[2] = 1;
-            v.uv[0] = (positions[i][0] + 0.7f) / 1.4f; v.uv[1] = (0.7f - positions[i][1]) / 1.4f;
-            if (uv_seam) v.uv[0] = v.uv[0] * 0.3f + (i >= 3 ? 0.7f : 0.0f);
-            std::fill(std::begin(v.color), std::end(v.color), 1.0f);
+            auto& v = vertices[31 + i];
+            v = vertices[1 + i];
+            v.uv[0] = 0.0371f + v.uv[0] * 0.9213f; v.uv[1] = 0.0529f + v.uv[1] * 0.8871f;
         }
+        // Atlas test: four screens cut from one texture (2 x 2, with gaps between them on the monitor), like the A220,
+        // A340 and A380, whose displays share one texture: every screen edge runs into texture another screen shows.
+        // Vertices 37-60.
+        for (size_t q = 0; q < 4; ++q)
+            for (size_t i = 0; i < 6; ++i) {
+                auto& v = vertices[37 + q * 6 + i];
+                const bool right = q & 1, lower = q >> 1;
+                const float x0 = right ? 0.05f : -0.7f, x1 = right ? 0.7f : -0.05f, y0 = lower ? -0.7f : 0.05f, y1 = lower ? -0.05f : 0.7f;
+                const float x = positions[i][0] > 0 ? x1 : x0, y = positions[i][1] > 0 ? y1 : y0;
+                v.position[0] = x; v.position[1] = y; v.position[2] = 0.4f; v.position[3] = 1;
+                v.tangent[0] = v.tangent[3] = v.normal[2] = 1;
+                v.uv[0] = (right ? 0.5f : 0.0f) + 0.5f * (x - x0) / (x1 - x0); v.uv[1] = (lower ? 0.5f : 0.0f) + 0.5f * (y1 - y) / (y1 - y0);
+                std::fill(std::begin(v.color), std::end(v.color), 1.0f);
+            }
+        // Band test: a strip at the top edge (about two render pixels) whose texture coordinates all point at one spot.
+        constexpr float band_bottom = 0.692f;
+        for (size_t part = 0; part < 2; ++part)
+            for (size_t i = 0; i < 6; ++i) {
+                auto& v = vertices[19 + part * 6 + i];
+                const float top = part == 0 ? 0.7f : band_bottom, bottom = part == 0 ? band_bottom : -0.7f;
+                const float y = positions[i][1] > 0 ? top : bottom;
+                v.position[0] = positions[i][0]; v.position[1] = y; v.position[2] = 0.4f; v.position[3] = 1;
+                v.tangent[0] = v.tangent[3] = v.normal[2] = 1;
+                if (part == 0) { v.uv[0] = 0.004f; v.uv[1] = 0.06f; }
+                else { v.uv[0] = (positions[i][0] + 0.7f) / 1.4f; v.uv[1] = (top - y) / (top - bottom); }
+                std::fill(std::begin(v.color), std::end(v.color), 1.0f);
+            }
+        // Windows test: four windows over most of the screen, drawn with the screen's texture but their texture
+        // coordinates (almost) on one spot, and a brighter material (like the iFly 737's radio windows: their digits come from
+        // elsewhere). Vertices 61-84.
+        for (size_t q = 0; q < 4; ++q)
+            for (size_t i = 0; i < 6; ++i) {
+                auto& v = vertices[61 + q * 6 + i];
+                const bool right = q & 1, lower = q >> 1;
+                const float x0 = right ? 0.08f : -0.62f, x1 = right ? 0.62f : -0.08f, y0 = lower ? -0.62f : 0.08f, y1 = lower ? -0.08f : 0.62f;
+                v.position[0] = positions[i][0] > 0 ? x1 : x0; v.position[1] = positions[i][1] > 0 ? y1 : y0; v.position[2] = 0.399f; v.position[3] = 1;
+                v.tangent[0] = v.tangent[3] = v.normal[2] = 1;
+                // Almost one spot: less than half a texel across the whole window (as on the iFly, not exactly constant).
+                v.uv[0] = 0.004f + (positions[i][0] > 0 ? 0.0005f : 0.0f); v.uv[1] = 0.06f + (positions[i][1] > 0 ? 0.0f : 0.0005f);
+                std::fill(std::begin(v.color), std::end(v.color), 1.0f);
+            }
         auto vb = buffer(device.Get(), sizeof(vertices), D3D12_HEAP_TYPE_UPLOAD); upload(vb.Get(), vertices.data(), sizeof(vertices));
         constexpr UINT16 indices[]{0, 1, 2, 3, 4, 5};
         auto ib = buffer(device.Get(), sizeof(indices), D3D12_HEAP_TYPE_UPLOAD); upload(ib.Get(), indices, sizeof(indices));
         const D3D12_VERTEX_BUFFER_VIEW vbv{vb->GetGPUVirtualAddress(), sizeof(vertices), sizeof(Vertex)};
         const D3D12_INDEX_BUFFER_VIEW ibv{ib->GetGPUVirtualAddress(), sizeof(indices), DXGI_FORMAT_R16_UINT};
         std::array<ComPtr<ID3D12Resource>, 2> globals, worlds, objects;
+        ComPtr<ID3D12Resource> objects_dim, objects_off; // per-instance brightness 0.35 (dim modes), 0 (power-on mode)
         for (int k = 0; k < 2; ++k) {
-            const auto c = constants(k ? 0.25f : 0.0f);
+            auto c = constants(k ? 0.25f : 0.0f);
+            c.object[0] = {1, 1, 1, 1}; // instance 0's brightness (the display shader multiplies its output by row 0's rgb)
             globals[k] = buffer(device.Get(), sizeof(c.global), D3D12_HEAP_TYPE_UPLOAD); upload(globals[k].Get(), c.global.data(), sizeof(c.global));
             worlds[k] = buffer(device.Get(), sizeof(c.world), D3D12_HEAP_TYPE_UPLOAD); upload(worlds[k].Get(), c.world.data(), sizeof(c.world));
             objects[k] = buffer(device.Get(), 512, D3D12_HEAP_TYPE_UPLOAD); upload(objects[k].Get(), c.object.data(), sizeof(c.object));
+            if (!k) {
+                c.object[0] = {0.35f, 0.35f, 0.35f, 1};
+                objects_dim = buffer(device.Get(), 512, D3D12_HEAP_TYPE_UPLOAD); upload(objects_dim.Get(), c.object.data(), sizeof(c.object));
+                c.object[0] = {0, 0, 0, 1};
+                objects_off = buffer(device.Get(), 512, D3D12_HEAP_TYPE_UPLOAD); upload(objects_off.Get(), c.object.data(), sizeof(c.object));
+            }
         }
         auto render_cb = buffer(device.Get(), 256, D3D12_HEAP_TYPE_UPLOAD);
         const float threshold[4]{0, 0, 0, 0}; upload(render_cb.Get(), threshold, sizeof(threshold));
@@ -486,16 +563,32 @@ int main(int argc, char** argv) {
         // Textures: 2x1 alpha texture (t0) and a 768x768 5-mip render-target display texture (t1).
         auto alpha = texture(device.Get(), 2, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST);
         auto display = texture(device.Get(), 768, 768, 5, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+        auto display2 = texture(device.Get(), 768, 768, 5, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
         // The display texture is rewritten whenever its content scrolls (like the sim's instrument renderer does).
         std::array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT, 5> display_fp{}; UINT64 display_total = 0;
         { const auto dd = display->GetDesc(); device->GetCopyableFootprints(&dd, 0, 5, 0, display_fp.data(), nullptr, nullptr, &display_total); }
         auto display_staging = buffer(device.Get(), display_total, D3D12_HEAP_TYPE_UPLOAD);
-        bool display_initialised = false;
         bool blank_display = false;
-        auto upload_display = [&](UINT scroll) {
+        bool display_initialised = false, display2_initialised = false;
+        // second = the join test's bottom texture: the pattern's lower half, black in its top rows; the top texture then
+        // has a bright line along its bottom rows (as the E-Jet PFD's halves meet: brown, a light line, black).
+        bool cursor = false; // band test: a parked mouse cursor over the band's texture spot
+        bool blank = false; // blank test: the screen's picture is all black (no contrast to match the brightness on)
+        auto upload_display = [&](UINT scroll, bool join = false, bool second = false) {
+            ID3D12Resource* const target = second ? display2.Get() : display.Get();
+            bool& initialised = second ? display2_initialised : display_initialised;
             std::vector<uint8_t> bytes(size_t(display_total), 0);
             std::vector<std::array<float, 4>> level(768 * 768);
-            for (UINT y = 0; y < 768; ++y) for (UINT x = 0; x < 768; ++x) { auto p = blank_display ? std::array<uint8_t, 4>{0, 0, 0, 255} : pattern(x, (y + scroll) % 768); if (dark_glare) { const bool line = (x % 96 < 2 && ((y + scroll) % 96 < 42)) || ((y + scroll) % 96 < 2 && x % 96 < 42); p = line ? std::array<uint8_t,4>{180,180,180,255} : std::array<uint8_t,4>{2,2,2,255}; } level[y * 768 + x] = {float(p[0]), float(p[1]), float(p[2]), float(p[3])}; }
+            for (UINT y = 0; y < 768; ++y) for (UINT x = 0; x < 768; ++x) {
+                auto p = pattern(x, (y + scroll + (second ? 384 : 0)) % 768);
+                if (blank || blank_display) p = {0, 0, 0, 255};
+                if (join && !second && y >= 764) p = {230, 230, 230, 255};
+                if (join && !second && y >= 700 && y < 764 && p[0] + p[1] + p[2] == 0) p = {90, 50, 25, 255}; // brown above the join
+                if (join && second && y < 4) p = {0, 0, 0, 255};
+                if (cursor && !second && x < 14 && y >= 38 && y < 56) p = (x + (y - 38)) % 5 < 3 && x <= (y - 38) ? std::array<uint8_t, 4>{255, 255, 255, 255} : std::array<uint8_t, 4>{0, 0, 0, 255};
+                if (dark_glare) { const bool line = (x % 96 < 2 && ((y + scroll) % 96 < 42)) || ((y + scroll) % 96 < 2 && x % 96 < 42); p = line ? std::array<uint8_t,4>{180,180,180,255} : std::array<uint8_t,4>{2,2,2,255}; }
+                level[y * 768 + x] = {float(p[0]), float(p[1]), float(p[2]), float(p[3])};
+            }
             UINT size = 768;
             for (UINT m = 0; m < 5; ++m) {
                 for (UINT y = 0; y < size; ++y) for (UINT x = 0; x < size; ++x)
@@ -508,17 +601,18 @@ int main(int argc, char** argv) {
             }
             upload(display_staging.Get(), bytes.data(), bytes.size());
             constexpr auto readable = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-            if (display_initialised) transition(list.Get(), display.Get(), readable, D3D12_RESOURCE_STATE_COPY_DEST);
+            if (initialised) transition(list.Get(), target, readable, D3D12_RESOURCE_STATE_COPY_DEST);
             for (UINT m = 0; m < 5; ++m) {
-                D3D12_TEXTURE_COPY_LOCATION to{display.Get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX}, from{display_staging.Get(), D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
+                D3D12_TEXTURE_COPY_LOCATION to{target, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX}, from{display_staging.Get(), D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
                 to.SubresourceIndex = m; from.PlacedFootprint = display_fp[m];
                 list->CopyTextureRegion(&to, 0, 0, 0, &from, nullptr);
             }
-            transition(list.Get(), display.Get(), D3D12_RESOURCE_STATE_COPY_DEST, readable);
-            display_initialised = true;
+            transition(list.Get(), target, D3D12_RESOURCE_STATE_COPY_DEST, readable);
+            initialised = true;
             submit();
         };
         upload_display(0);
+        upload_display(0, false, true);
         {
             D3D12_PLACED_SUBRESOURCE_FOOTPRINT afp{}; UINT64 atotal = 0; const auto ad = alpha->GetDesc();
             device->GetCopyableFootprints(&ad, 0, 1, 0, &afp, nullptr, nullptr, &atotal);
@@ -559,6 +653,16 @@ int main(int argc, char** argv) {
         auto gpu_slot = gpu0; gpu_slot.ptr += 4 * inc; // table at slot 4
         device->CopyDescriptorsSimple(2, gpu_slot, cpu0, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         auto table = gpu_heap->GetGPUDescriptorHandleForHeapStart(); table.ptr += 4 * inc;
+        {
+            // Join test: the same table with the second display texture, at slots 6-7.
+            auto cpu6 = cpu0; cpu6.ptr += 6 * inc;
+            auto cpu7 = cpu0; cpu7.ptr += 7 * inc;
+            device->CreateShaderResourceView(screen_t0 ? display2.Get() : alpha.Get(), nullptr, cpu6);
+            device->CreateShaderResourceView(screen_t0 ? alpha.Get() : display2.Get(), nullptr, cpu7);
+            auto gpu6 = gpu0; gpu6.ptr += 6 * inc;
+            device->CopyDescriptorsSimple(2, gpu6, cpu6, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        }
+        auto table2 = table; table2.ptr += 2 * inc;
         if (bench) {
             // The sim makes millions of descriptor copies per second from several threads; with descriptor tracking
             // (--track) each goes through the add-on. Time them: 4 threads, 1M single-descriptor copies each, from a
@@ -601,7 +705,7 @@ int main(int argc, char** argv) {
         auto eye_colour = vr ? texture(device.Get(), render_w, render_h, 1, DXGI_FORMAT_R11G11B10_FLOAT, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST) : nullptr;
         auto final_views = vr ? texture(device.Get(), output_w, output_h, 1, DXGI_FORMAT_R11G11B10_FLOAT, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, UINT16(views)) : nullptr;
         D3D12_CLEAR_VALUE depth_clear{DXGI_FORMAT_D32_FLOAT}; depth_clear.DepthStencil.Depth = 1;
-        auto depth = texture(device.Get(), render_w, render_h, 1, DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depth_clear, UINT16(views));
+        auto depth = texture(device.Get(), render_w, render_h, 1, DXGI_FORMAT_R32_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depth_clear, UINT16(views));
         const float magenta[4]{1, 0, 1, 1};
         D3D12_CLEAR_VALUE magenta_clear{DXGI_FORMAT_R11G11B10_FLOAT, {1, 0, 1, 1}};
         auto output = texture(device.Get(), output_w, output_h, 1, DXGI_FORMAT_R11G11B10_FLOAT,
@@ -628,7 +732,10 @@ int main(int argc, char** argv) {
             D3D12_DEPTH_STENCIL_VIEW_DESC layered{DXGI_FORMAT_D32_FLOAT, D3D12_DSV_DIMENSION_TEXTURE2DARRAY};
             layered.Texture2DArray = {0, 0, views};
             device->CreateDepthStencilView(depth.Get(), &layered, dsv(0));
-        } else device->CreateDepthStencilView(depth.Get(), nullptr, dsv(0));
+        } else {
+            D3D12_DEPTH_STENCIL_VIEW_DESC plain{DXGI_FORMAT_D32_FLOAT, D3D12_DSV_DIMENSION_TEXTURE2D};
+            device->CreateDepthStencilView(depth.Get(), &plain, dsv(0));
+        }
         device->CreateDepthStencilView(ref_depth.Get(), nullptr, dsv(1));
 
         auto bind = [&](ID3D12PipelineState* pso, int variant) {
@@ -713,24 +820,463 @@ int main(int argc, char** argv) {
         std::array<std::vector<std::array<float, 4>>, 2> previous_refs;
         std::vector<uint32_t> prefill(size_t(output_w) * output_h);
         bool all_passed = true;
+        if (motion) {
+            // Shimmer and trails with the camera panning slowly (~1/3 output pixel per frame) over a screen with thin lines,
+            // and a content change (the picture scrolls 8 texels) at frame 30. Compared with the screen filtered over each
+            // pixel's area (16 sub-pixel reference renders): "error" = how far from that, "flicker" = how much more the
+            // picture changes from frame to frame than that ideal picture does (shimmer), "after change" = error on the
+            // 3 frames after the content change (trails would show here).
+            const auto set_temporal = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixTemporal"));
+            require(set_temporal != nullptr, "exports missing");
+            using Image = std::vector<std::array<float, 4>>;
+            bool join = false;
+            // The display as drawn: one quad, or (join) its two halves with their own textures.
+            bool band = false, inset = false, atlas = false, windows = false, dim = false, unpowered = false;
+            auto window_material = buffer(device.Get(), 512, D3D12_HEAP_TYPE_UPLOAD);
+            auto draw_display = [&] {
+                if (windows) {
+                    list->DrawIndexedInstanced(6, 1, 0, 1, 0);
+                    list->SetGraphicsRootConstantBufferView(4, window_material->GetGPUVirtualAddress());
+                    for (int q = 0; q < 4; ++q) list->DrawIndexedInstanced(6, 1, 0, 61 + q * 6, 0);
+                    list->SetGraphicsRootConstantBufferView(4, materials[0]->GetGPUVirtualAddress());
+                    return;
+                }
+                if (band) { list->DrawIndexedInstanced(6, 1, 0, 19, 0); list->DrawIndexedInstanced(6, 1, 0, 25, 0); return; }
+                if (inset) { list->DrawIndexedInstanced(6, 1, 0, 31, 0); return; }
+                if (unpowered) list->SetGraphicsRootConstantBufferView(2, objects_off->GetGPUVirtualAddress());
+                if (atlas) {
+                    for (int q = 0; q < 4; ++q) {
+                        // Dim: the third quad at its own brightness (like the Fenix A320's readouts on one texture).
+                        if (dim && q == 2) list->SetGraphicsRootConstantBufferView(2, (unpowered ? objects_off : objects_dim)->GetGPUVirtualAddress());
+                        list->DrawIndexedInstanced(6, 1, 0, 37 + q * 6, 0);
+                        if (dim && q == 2) list->SetGraphicsRootConstantBufferView(2, (unpowered ? objects_off : objects[0])->GetGPUVirtualAddress());
+                    }
+                    if (unpowered) list->SetGraphicsRootConstantBufferView(2, objects[0]->GetGPUVirtualAddress());
+                    return;
+                }
+                if (!join) { list->DrawIndexedInstanced(6, 1, 0, 1, 0); return; }
+                list->SetGraphicsRootDescriptorTable(5, table);
+                list->DrawIndexedInstanced(6, 1, 0, 7, 0);
+                list->SetGraphicsRootDescriptorTable(5, table2);
+                list->DrawIndexedInstanced(6, 1, 0, 13, 0);
+                list->SetGraphicsRootDescriptorTable(5, table);
+            };
+            auto truth = [&] {
+                const float zero[4]{};
+                list->ClearRenderTargetView(rtv(2), zero, 0, nullptr);
+                bind(accumulate_pso.Get(), 0);
+                auto r2 = rtv(2); list->OMSetRenderTargets(1, &r2, FALSE, nullptr);
+                const D3D12_RECT sc{0, 0, LONG(output_w), LONG(output_h)}; list->RSSetScissorRects(1, &sc);
+                for (int k = 0; k < 16; ++k) {
+                    const D3D12_VIEWPORT vp{(k % 4 + 0.5f) / 4 - 0.5f, (k / 4 + 0.5f) / 4 - 0.5f, float(output_w), float(output_h), 0, 1};
+                    list->RSSetViewports(1, &vp);
+                    draw_display();
+                }
+                transition(list.Get(), reference.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+                auto rb = readback(device.Get(), reference.Get()); copy(list.Get(), reference.Get(), rb);
+                transition(list.Get(), reference.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                submit();
+                Image result(size_t(output_w) * output_h);
+                void* mapped = nullptr; check(rb.buffer->Map(0, nullptr, &mapped));
+                for (UINT y = 0; y < output_h; ++y)
+                    std::memcpy(&result[size_t(y) * output_w], static_cast<uint8_t*>(mapped) + rb.footprint.Offset + size_t(y) * rb.footprint.Footprint.RowPitch, size_t(output_w) * 16);
+                rb.buffer->Unmap(0, nullptr);
+                for (auto& v : result) { for (int c = 0; c < 3; ++c) v[c] /= 16; v[3] /= 8; } // w: share of the pixel on the screen
+                return result;
+            };
+            float dlss_shift[2]{};
+            bool dlss_magenta = false; // trim test: the fake DLSS output is magenta (shows which pixels the fix left alone)
+            // Occlusion test: something in front of the screen (a sidestick), drawn after it into colour and depth (render
+            // pixels; the same spot at output size is in the ideal picture). The upscaler gets the depth buffer.
+            D3D12_RECT occluder{};
+            const float occluder_colour[4]{0.2f, 0.12f, 0.05f, 1};
+            ngx.depth = depth.Get();
+            auto run = [&](const Image& ideal, float jx, float jy) {
+                frame_boundary();
+                list->ClearRenderTargetView(rtv(0), black.Color, 0, nullptr);
+                list->ClearDepthStencilView(dsv(0), D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+                bind(game_pso.Get(), 0);
+                const D3D12_VIEWPORT vp{jx, jy, float(render_w), float(render_h), 0, 1}; const D3D12_RECT sc{0, 0, LONG(render_w), LONG(render_h)};
+                list->RSSetViewports(1, &vp); list->RSSetScissorRects(1, &sc);
+                auto r0 = rtv(0), d0 = dsv(0); list->OMSetRenderTargets(1, &r0, FALSE, &d0);
+                draw_display();
+                if (occluder.right > occluder.left) {
+                    list->ClearDepthStencilView(dsv(0), D3D12_CLEAR_FLAG_DEPTH, 0, 0, 1, &occluder);
+                    list->ClearRenderTargetView(rtv(0), occluder_colour, 1, &occluder);
+                }
+                transition(list.Get(), scene.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                transition(list.Get(), depth.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                submit();
+                // The fake DLSS output: the ideal picture (no ghost); the fix redraws the screen over it.
+                for (size_t i = 0; i < prefill.size(); ++i) prefill[i] = encode_r11g11b10(dlss_magenta && !(occluder.right > occluder.left && ideal[i][3] <= 0) ? std::array<float, 3>{1, 0, 1} : std::array<float, 3>{ideal[i][0], ideal[i][1], ideal[i][2]});
+                if (dlss_shift[0] != 0 || dlss_shift[1] != 0)
+                    for (UINT y = 1; y + 1 < output_h; ++y) for (UINT x = 1; x + 1 < output_w; ++x) {
+                        const float sx = x + dlss_shift[0], sy = y + dlss_shift[1];
+                        const UINT x0 = std::min(UINT(std::max(sx, 0.0f)), output_w - 2), y0 = std::min(UINT(std::max(sy, 0.0f)), output_h - 2);
+                        const float fx = std::clamp(sx - x0, 0.0f, 1.0f), fy = std::clamp(sy - y0, 0.0f, 1.0f);
+                        std::array<float, 3> v{};
+                        for (int k = 0; k < 3; ++k) {
+                            const auto at = [&](UINT xx, UINT yy) { return ideal[size_t(yy) * output_w + xx][k]; };
+                            v[k] = (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+                        }
+                        prefill[size_t(y) * output_w + x] = encode_r11g11b10(v);
+                    }
+                {
+                    void* data = nullptr; check(prefill_upload->Map(0, nullptr, &data));
+                    for (UINT y = 0; y < output_h; ++y)
+                        std::memcpy(static_cast<uint8_t*>(data) + out_rb.footprint.Offset + size_t(y) * out_rb.footprint.Footprint.RowPitch, &prefill[size_t(y) * output_w], size_t(output_w) * 4);
+                    prefill_upload->Unmap(0, nullptr);
+                }
+                transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+                D3D12_TEXTURE_COPY_LOCATION to{output.Get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX}, from{prefill_upload.Get(), D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
+                from.PlacedFootprint = out_rb.footprint;
+                list->CopyTextureRegion(&to, 0, 0, 0, &from, nullptr);
+                transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                ngx.jitter_x = jx; ngx.jitter_y = jy;
+                require(evaluate(list.Get(), nullptr, &ngx, nullptr) == NVSDK_NGX_Result_Success, "evaluate failed");
+                transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+                copy(list.Get(), output.Get(), out_rb);
+                transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                transition(list.Get(), scene.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                transition(list.Get(), depth.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+                submit();
+                Image result(size_t(output_w) * output_h);
+                void* mapped = nullptr; check(out_rb.buffer->Map(0, nullptr, &mapped));
+                for (UINT y = 0; y < output_h; ++y) for (UINT x = 0; x < output_w; ++x) {
+                    const auto c = r11g11b10(*reinterpret_cast<const uint32_t*>(static_cast<uint8_t*>(mapped) + out_rb.footprint.Offset + size_t(y) * out_rb.footprint.Footprint.RowPitch + x * 4));
+                    result[size_t(y) * output_w + x] = {c[0], c[1], c[2], 1};
+                }
+                out_rb.buffer->Unmap(0, nullptr);
+                return result;
+            };
+            auto save = [&](const Image& image, const std::string& name) {
+                std::vector<BYTE> png(size_t(output_w) * output_h * 4);
+                for (size_t i = 0; i < image.size(); ++i) { for (int k = 0; k < 3; ++k) png[i * 4 + k] = BYTE(std::clamp(image[i][k], 0.0f, 1.0f) * 255); png[i * 4 + 3] = 255; }
+                save_png(here / ("motion-" + name + ".png"), output_w, output_h, output_w * 4, png.data());
+            };
+            struct Mode { const char* name; int smoothing, temporal; float speed = 0.0007f; int gaussian = 0; int stable = 1; int glass = 0; uint32_t debug = 0; int full_size = 1; bool join = false; bool sun = false; int calm = 1; bool band = false; float scale = 1; bool inset = false; bool atlas = false; bool swap = false; int trim = 0; bool occluder = false; int occlusion = 0; bool blank = false; bool windows = false; bool dim = false; bool power_on = false; };
+            const Mode modes[]{{"still-glass", 35, 0, 0, 0, 1, 100}, {"still-glass-smooth", 35, 0, 0, 0, 1, 100, 2048}, {"still-glass-fullsize-off", 35, 0, 0, 0, 1, 100, 0, 0},
+                {"glass", 35, 0, 0.0007f, 0, 1, 100}, {"still-no-glass", 35, 0, 0, 0, 1, 0},
+                {"still-edges-off", 35, 0, 0, 0, 0}, {"still-edges-on", 35, 0, 0, 0, 1}, {"edges-off", 35, 0, 0.0007f, 0, 0}, {"edges-on", 35, 0, 0.0007f, 0, 1},
+                {"off-ls35", 35, 0}, {"gauss-ls35", 35, 0, 0.0007f, 1}, {"taa-ls0", 0, 1},
+                // Two screen textures meeting within one display (FSS E-Jet PFD): "join" = error and flicker along the join.
+                {"still-join", 35, 0, 0, 0, 1, 0, 0, 1, true}, {"join", 35, 0, 0.0007f, 0, 1, 0, 0, 1, true},
+                {"still-join-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, true}, {"join-edges-off", 35, 0, 0.0007f, 0, 0, 0, 0, 1, true},
+                {"join-glass", 35, 0, 0.0007f, 0, 1, 100, 0, 1, true},
+                {"sun", 35, 0, 0, 0, 1, 100, 0, 1, false, true}, {"sun-smooth-only", 35, 0, 0, 0, 1, 100, 2048, 1, false, true},
+                {"sun-no-glass", 35, 0, 0, 0, 1, 0, 0, 1, false, true},
+                {"sun-moving", 35, 0, 0.0007f, 0, 1, 100, 0, 1, false, true},
+                {"sun-sharp", 35, 0, 0, 0, 1, 100, 0, 1, false, true, 0}, {"sun-moving-sharp", 35, 0, 0.0007f, 0, 1, 100, 0, 1, false, true, 0},
+                {"sun-test12", 35, 0, 0, 0, 1, 100, 8192, 1, false, true, 0}, {"sun-moving-test12", 35, 0, 0.0007f, 0, 1, 100, 8192, 1, false, true, 0},
+                {"glass-test12", 35, 0, 0.0007f, 0, 1, 100, 8192, 1, false, false, 0}, {"still-glass-test12", 35, 0, 0, 0, 1, 100, 8192, 1, false, false, 0},
+                {"glass-sharp", 35, 0, 0.0007f, 0, 1, 100, 0, 1, false, false, 0}, {"still-glass-sharp", 35, 0, 0, 0, 1, 100, 0, 1, false, false, 0},
+                // Bezel band with a parked cursor over its texture spot (FSS E-Jet ND): "band" = error and flicker on it.
+                {"still-band", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, true}, {"band", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, true},
+                // Small, distant screen (about 70 render pixels across, like the E-Jet clock).
+                {"still-small", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 0.12f}, {"small", 35, 0, 0.0002f, 0, 1, 0, 0, 1, false, false, 0, false, 0.12f},
+                {"still-small-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 0.12f}, {"small-edges-off", 35, 0, 0.0002f, 0, 0, 0, 0, 1, false, false, 0, false, 0.12f},
+                // Screen edges in the middle of the texture (cut-outs), small and full size.
+                {"still-inset-small", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 0.12f, true}, {"inset-small", 35, 0, 0.0002f, 0, 1, 0, 0, 1, false, false, 0, false, 0.12f, true},
+                {"still-inset-small-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 0.12f, true}, {"inset-small-edges-off", 35, 0, 0.0002f, 0, 0, 0, 0, 1, false, false, 0, false, 0.12f, true},
+                {"still-inset", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, true}, {"inset", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, true},
+                {"inset-edges-off", 35, 0, 0.0007f, 0, 0, 0, 0, 1, false, false, 0, false, 1, true},
+                // Screens sharing one texture (A220, A340, A380).
+                {"still-atlas", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true}, {"atlas", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true},
+                // One texture, four meshes, one of them dimmer (per-instance brightness): each must keep its own brightness.
+                {"still-dim-atlas", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 0, false, 0, false, false, true},
+                {"dim-atlas", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 0, false, 0, false, false, true},
+                // The same, unpowered (drawn black) for the first 10 frames: the brightness reference must not stay at "off".
+                {"still-dim-atlas-power-on", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 0, false, 0, false, false, true, true},
+                {"still-atlas-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 1, false, true}, {"atlas-edges-off", 35, 0, 0.0007f, 0, 0, 0, 0, 1, false, false, 0, false, 1, false, true},
+                // The sim recycling screen textures (A220): every 12 frames the screen texture is destroyed and a new one
+                // made (it takes the same slot), shown at another brightness. "swap" = error on the 2 frames after each swap.
+                {"still-swap", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, true},
+                // Edge trim: the fake DLSS output is magenta, so the trimmed band shows. "trim" = flicker of the pixels near the
+                // screen's edge (the band must not crawl with the jitter) and the share of them left to the upscaler.
+                {"still-trim-0", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0},
+                {"still-trim", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 200},
+                {"trim", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 200},
+                {"still-trim-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 1, false, false, false, 200},
+                {"trim-0", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0},
+                {"still-trim-0-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0},
+                {"still-trim-0-atlas", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 0},
+                {"still-trim-atlas", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 200},
+                {"still-trim-join", 35, 0, 0, 0, 1, 0, 0, 1, true, false, 0, false, 1, false, false, false, 200},
+                // Something in front of the screen (A380 sidestick over the EFB): "occluder" = error on it (the fix must leave
+                // it alone). "-check-off" shows the problem without the occlusion check.
+                {"still-occluder-check-off", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, true, 0},
+                {"still-occluder", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, true, 1},
+                {"occluder", 35, 0, 0.0007f, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, true, 1},
+                {"still-occluder-edges-off", 35, 0, 0, 0, 0, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, true, 1},
+                {"still-occluder-trim", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 200, true, 1},
+                {"still-occluder-trim-0", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, true, 1},
+                {"still-occluder-atlas", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, true, false, 0, true, 1},
+                // The screen's picture goes blank (all black) after it was matched (A380 EFB: only its blank side in view).
+                // The fake DLSS output is magenta: "blank_dropped" = share of the screen left to the upscaler afterwards.
+                {"still-blank", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, false, 0, true},
+                // Windows over most of the screen pointing at one texture spot, brighter (iFly 737 radio windows): the fake
+                // DLSS output is magenta, "screen_dropped" = share of the rest of the screen left to the upscaler.
+                {"still-windows", 35, 0, 0, 0, 1, 0, 0, 1, false, false, 0, false, 1, false, false, false, 0, false, 0, false, true}};
+            const auto set_stable = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixStableEdges"));
+            require(set_stable != nullptr, "exports missing");
+            const auto set_gaussian = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixGaussian"));
+            require(set_gaussian != nullptr, "exports missing");
+            const float jitters[8][2]{{0.0f, -0.1667f}, {-0.25f, 0.1667f}, {0.25f, -0.3889f}, {-0.375f, -0.0556f},
+                {0.125f, 0.2778f}, {-0.125f, -0.2778f}, {0.375f, 0.0556f}, {-0.4375f, 0.3889f}};
+            constexpr int frame_count = 52, change_at = 46, measure_from = 26;
+            // Screen content only: no dirt, glare or shadow, glass layer off (the fake DLSS output is the ideal picture,
+            // which the glass layer would otherwise pass through).
+            const auto set_glass = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixGlassStrength"));
+            const auto set_full_size = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixFullSize"));
+            const auto set_debug = reinterpret_cast<void (*)(uint32_t)>(GetProcAddress(addon, "GlassFixDebugFlags"));
+            const auto set_calm = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixCalmGlass"));
+            const auto set_trim = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixEdgeTrim"));
+            const auto set_occlusion = reinterpret_cast<void (*)(int)>(GetProcAddress(addon, "GlassFixOcclusionCheck"));
+            require(set_glass && set_full_size && set_debug && set_calm && set_trim && set_occlusion, "exports missing");
+            bool occlusion_everywhere = false; // --occlusion: the check on in every mode (it must change nothing without an occluder)
+            for (int i = 1; i < argc; ++i) if (!std::strcmp(argv[i], "--occlusion")) occlusion_everywhere = true;
+            Sleep(1500); // let the background PSO compile finish
+            const char* only = nullptr; // --only <text>: just the modes whose name contains it
+            for (int i = 1; i + 1 < argc; ++i) if (!std::strcmp(argv[i], "--only")) only = argv[i + 1];
+            for (const auto& m : modes) {
+                if (only && !std::strstr(m.name, only)) continue;
+                set_smooth(m.smoothing);
+                set_gaussian(m.gaussian);
+                set_stable(m.stable);
+                // Glass modes: dirt on the screen and the glass layer on (the fake DLSS output still the ideal picture).
+                set_material({"motion", 0, true, true, 0, 0, 0, m.glass || m.sun ? 0.06f : 0.0f, m.sun ? 0.55f : 0.0f, m.sun, Frame::perfect, Frame::info});
+                set_glass(m.glass);
+                set_debug(m.debug);
+                set_calm(m.calm);
+                set_trim(m.trim);
+                set_occlusion(m.occlusion || occlusion_everywhere);
+                occluder = {};
+                double occluder_error = 0, ring_trimmed = 0, blank_dropped = 0; uint64_t occluder_n = 0, ring_n = 0, blank_n = 0;
+                dlss_magenta = std::strstr(m.name, "trim") != nullptr || m.blank || m.windows;
+                set_full_size(m.full_size);
+                set_temporal(0);
+                join = m.join; band = m.band; cursor = m.band; inset = m.inset; atlas = m.atlas; windows = m.windows; dim = m.dim;
+                if (m.windows) {
+                    auto bright = material; bright[2] = {}; bright[3] = {1.5f, 1.3f, 1.0f, 0}; // the windows' own light (lit digits)
+                    upload(window_material.Get(), bright.data(), sizeof(bright));
+                }
+                double screen_dropped = 0; uint64_t screen_n = 0;
+                upload_display(0, join);
+                upload_display(0, join, true);
+                Image previous_out, previous_ideal;
+                std::vector<float> flicker_map(size_t(output_w) * output_h, 0.0f); // per pixel: summed frame-to-frame change beyond the ideal's
+                int swapped_at = -100;
+                double swap_error = 0; uint64_t swap_n = 0;
+                double trim_flicker = 0, trimmed = 0; uint64_t trim_n = 0, trim_flicker_n = 0;
+                std::vector<uint8_t> trim_zone; // pixels on the screen within 8 output pixels of its edge
+                double error = 0, flicker = 0, after_change = 0, edge_error = 0, edge_flicker = 0, join_error = 0, join_flicker = 0;
+                uint64_t error_n = 0, flicker_n = 0, change_n = 0, edge_n = 0, edge_flicker_n = 0, join_n = 0, join_flicker_n = 0;
+                for (int t = 0; t < frame_count; ++t) {
+                    unpowered = m.power_on && t < 10;
+                    if (t == 1) set_temporal(m.temporal); // the first frame without history (like switching it on)
+                    // The standalone host polls the INI during real upscaler calls. Keep
+                    // each motion experiment there too so polling cannot reset its mode.
+                    const std::pair<const wchar_t*,int> options[]{{L"temporal_aa",t ? m.temporal : 0},{L"soft_smoothing",m.gaussian},{L"stable_edges",m.stable},{L"full_size_sampling",m.full_size},{L"calm_glass",m.calm},{L"edge_trim",m.trim},{L"occlusion_check",int(m.occlusion || occlusion_everywhere)}};
+                    for (auto option : options) require(WritePrivateProfileStringW(L"experimental",option.first,std::to_wstring(option.second).c_str(),(here / UVR_SETTINGS_FILE).c_str()),"motion INI write failed");
+                    if (t == change_at) { upload_display(8, join); upload_display(8, join, true); }
+                    if (m.blank && t == measure_from) { blank = true; upload_display(0, join); blank = false; }
+                    if (m.swap && t > 0 && t % 12 == 0) {
+                        // A new screen texture (the old one destroyed first, so the new one gets its slot), at another brightness.
+                        display = nullptr;
+                        display = texture(device.Get(), 768, 768, 5, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+                        display_initialised = false;
+                        upload_display(0, join);
+                        device->CreateShaderResourceView(screen_t0 ? display.Get() : alpha.Get(), nullptr, cpu0);
+                        device->CreateShaderResourceView(screen_t0 ? alpha.Get() : display.Get(), nullptr, cpu1);
+                        device->CopyDescriptorsSimple(2, gpu_slot, cpu0, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                        const float k = (t / 12) % 2 ? 0.35f : 1.0f;
+                        material[2] = {gain[0] * k, gain[1] * k, gain[2] * k, 0};
+                        upload(materials[0].Get(), material.data(), sizeof(material));
+                        swapped_at = t;
+                    }
+                    const auto c = constants(m.speed * t, m.scale);
+                    upload(globals[0].Get(), c.global.data(), sizeof(c.global));
+                    // Sun modes: the ideal picture with the steady sun (what DLSS shows), the sim's frame with this frame's.
+                    if (m.sun) {
+                        material[4] = {0.25f, 0.3f, 0.15f, 0.8f}; material[5] = {0, 0, 0.06f, 0.55f};
+                        upload(materials[0].Get(), material.data(), sizeof(material));
+                    }
+                    auto ideal = truth();
+                    if (m.occluder) {
+                        if (t == 0) {
+                            // A bar over the middle third of the screen, 40 render pixels wide.
+                            UINT x0 = output_w, y0 = output_h, x1 = 0, y1 = 0;
+                            for (UINT y = 0; y < output_h; ++y) for (UINT x = 0; x < output_w; ++x)
+                                if (ideal[size_t(y) * output_w + x][3] >= 0.999f) { x0 = std::min(x0, x); y0 = std::min(y0, y); x1 = std::max(x1, x); y1 = std::max(y1, y); }
+                            const LONG cx = LONG((x0 + x1) / 3), cy0 = LONG(y0 + (y1 - y0) / 3), cy1 = LONG(y1 - (y1 - y0) / 6);
+                            occluder = {cx - 20, cy0 * 2 / 3, cx + 20, cy1 * 2 / 3};
+                        }
+                        for (UINT y = 0; y < output_h; ++y) for (UINT x = 0; x < output_w; ++x)
+                            if ((x + 0.5f) / 1.5f >= occluder.left && (x + 0.5f) / 1.5f < occluder.right && (y + 0.5f) / 1.5f >= occluder.top && (y + 0.5f) / 1.5f < occluder.bottom)
+                                ideal[size_t(y) * output_w + x] = {occluder_colour[0], occluder_colour[1], occluder_colour[2], 0};
+                    }
+                    if (m.sun) {
+                        material[4] = {0.25f + 0.004f * std::sin(t * 2.1f), 0.3f, 0.15f, 0.8f * (1 + 0.08f * std::sin(t * 2.9f))};
+                        material[5] = {0, 0, 0.06f, 0.55f + 0.0015f * std::sin(t * 1.7f)};
+                        upload(materials[0].Get(), material.data(), sizeof(material));
+                    }
+                    dlss_shift[0] = m.sun ? 0.3f * std::sin(t * 1.3f) : 0.0f; dlss_shift[1] = m.sun ? 0.3f * std::cos(t * 1.9f) : 0.0f;
+                    const auto out = run(ideal, jitters[t % 8][0], jitters[t % 8][1]);
+                    // The join's two ends on the monitor (output pixels).
+                    float ends[2][2]{};
+                    for (int e = 0; e < 2; ++e) {
+                        const float p[4]{e ? 0.7f : -0.7f, 0, 0.4f, 1};
+                        float clip[4]{};
+                        for (int j = 0; j < 4; ++j) for (int k = 0; k < 4; ++k) clip[j] += p[k] * c.global[k][j];
+                        ends[e][0] = (clip[0] / clip[3] + 1) * 0.5f * output_w;
+                        ends[e][1] = (1 - clip[1] / clip[3]) * 0.5f * output_h;
+                    }
+                    if (band)
+                        for (int e = 0; e < 2; ++e) {
+                            const float p[4]{e ? 0.7f : -0.7f, 0.696f, 0.4f, 1};
+                            float clip[4]{};
+                            for (int j = 0; j < 4; ++j) for (int k = 0; k < 4; ++k) clip[j] += p[k] * c.global[k][j];
+                            ends[e][0] = (clip[0] / clip[3] + 1) * 0.5f * output_w;
+                            ends[e][1] = (1 - clip[1] / clip[3]) * 0.5f * output_h;
+                        }
+                    if (m.windows && t >= measure_from)
+                        // The screen itself (not the windows: those are the one bright flat colour).
+                        for (size_t i = 0; i < out.size(); ++i)
+                            if (ideal[i][3] >= 0.999f && ideal[i][0] < 0.3f) { screen_dropped += std::clamp(out[i][0], 0.0f, 1.0f) > 0.9f ? 1 : 0; ++screen_n; }
+                    if (m.blank && t >= measure_from + 10)
+                        for (size_t i = 0; i < out.size(); ++i)
+                            if (ideal[i][3] >= 0.999f) { blank_dropped += std::clamp(out[i][0], 0.0f, 1.0f); ++blank_n; }
+                    if (m.occluder && t >= measure_from && t < change_at)
+                        // Inside the occluder, 3 output pixels in from its edge (the jitter moves the fix's view of it).
+                        for (LONG y = occluder.top * 3 / 2 + 3; y < occluder.bottom * 3 / 2 - 3; ++y) for (LONG x = occluder.left * 3 / 2 + 3; x < occluder.right * 3 / 2 - 3; ++x) {
+                            const size_t i = size_t(y) * output_w + x;
+                            for (int k = 0; k < 3; ++k) occluder_error += std::abs(double(out[i][k]) - occluder_colour[k]) / 3;
+                            ++occluder_n;
+                        }
+                    const float jx_ = ends[1][0] - ends[0][0], jy_ = ends[1][1] - ends[0][1], jlen = std::sqrt(jx_ * jx_ + jy_ * jy_);
+                    if (m.occluder && dlss_magenta && t >= measure_from && t < change_at)
+                        // Screen pixels 3-10 output pixels around the occluder: edge trim must not cut there (the occluder isn't
+                        // the screen's edge). Share left to the (magenta) upscaler.
+                        for (LONG y = occluder.top * 3 / 2 - 10; y < occluder.bottom * 3 / 2 + 10; ++y) for (LONG x = occluder.left * 3 / 2 - 10; x < occluder.right * 3 / 2 + 10; ++x) {
+                            const LONG ox = std::max({occluder.left * 3 / 2 - x, x - (occluder.right * 3 / 2 - 1), 0L}), oy = std::max({occluder.top * 3 / 2 - y, y - (occluder.bottom * 3 / 2 - 1), 0L});
+                            if (std::max(ox, oy) < 3) continue;
+                            const size_t i = size_t(y) * output_w + x;
+                            if (ideal[i][3] < 0.999f || ideal[i][1] <= 0.05f) continue;
+                            ring_trimmed += std::clamp(1 - out[i][1] / ideal[i][1], 0.0f, 1.0f); ++ring_n;
+                        }
+                    if (dlss_magenta && t == measure_from) {
+                        trim_zone.assign(out.size(), 0);
+                        for (UINT y = 8; y + 8 < output_h; ++y) for (UINT x = 8; x + 8 < output_w; ++x) {
+                            const size_t i = size_t(y) * output_w + x;
+                            if (ideal[i][3] < 0.999f) continue;
+                            bool near_edge = false;
+                            for (int dy = -8; dy <= 8 && !near_edge; ++dy) for (int dx = -8; dx <= 8 && !near_edge; ++dx)
+                                near_edge = ideal[i + dy * int(output_w) + dx][3] < 0.001f;
+                            trim_zone[i] = near_edge;
+                        }
+                    }
+                    if (dlss_magenta && t >= measure_from && t < change_at)
+                        for (size_t i = 0; i < out.size(); ++i) {
+                            if (!trim_zone[i]) continue;
+                            // Share of the pixel left to the upscaler: how far towards magenta (green 0, the screen's green up).
+                            const float g = ideal[i][1] > 0.05f ? std::clamp(1 - out[i][1] / ideal[i][1], 0.0f, 1.0f) : 0.0f;
+                            trimmed += g; ++trim_n;
+                            if (!previous_out.empty()) {
+                                double f = 0;
+                                for (int k = 0; k < 3; ++k) f += std::abs((double(out[i][k]) - previous_out[i][k]) - (double(ideal[i][k]) - previous_ideal[i][k]));
+                                trim_flicker += f / 3; ++trim_flicker_n;
+                            }
+                        }
+                    for (UINT y = 3; y + 3 < output_h; ++y) for (UINT x = 3; x + 3 < output_w; ++x) {
+                        const size_t i = size_t(y) * output_w + x;
+                        if ((join || band) && t >= measure_from && t < change_at && (band || ideal[i][3] >= 0.999f)) {
+                            const float px = x + 0.5f - ends[0][0], py = y + 0.5f - ends[0][1];
+                            if (std::abs(px * jy_ - py * jx_) / jlen <= (band ? 3.0f : 2.0f) && px > 0.15f * jlen && px < 0.85f * jlen) {
+                                double e = 0, f = 0;
+                                for (int k = 0; k < 3; ++k) {
+                                    e += std::abs(double(out[i][k]) - ideal[i][k]);
+                                    if (!previous_out.empty()) f += std::abs((double(out[i][k]) - previous_out[i][k]) - (double(ideal[i][k]) - previous_ideal[i][k]));
+                                }
+                                join_error += e / 3; ++join_n;
+                                if (!previous_out.empty()) { join_flicker += f / 3; ++join_flicker_n; }
+                            }
+                        }
+                        if (ideal[i][3] > 0.001f && ideal[i][3] < 0.999f && t >= measure_from && t < change_at) {
+                            // Screen edge: the pixel is partly on the screen.
+                            double e = 0, f = 0;
+                            for (int k = 0; k < 3; ++k) {
+                                e += std::abs(double(out[i][k]) - ideal[i][k]);
+                                if (!previous_out.empty()) f += std::abs((double(out[i][k]) - previous_out[i][k]) - (double(ideal[i][k]) - previous_ideal[i][k]));
+                            }
+                            edge_error += e / 3; ++edge_n;
+                            if (!previous_out.empty()) { edge_flicker += f / 3; ++edge_flicker_n; }
+                        }
+                        bool inner = true;
+                        for (int dy = -3; dy <= 3 && inner; dy += 3) for (int dx = -3; dx <= 3 && inner; dx += 3) inner = ideal[i + dy * int(output_w) + dx][3] >= 0.999f;
+                        if (!inner) continue;
+                        double e = 0, f = 0;
+                        for (int k = 0; k < 3; ++k) {
+                            e += std::abs(double(out[i][k]) - ideal[i][k]);
+                            if (!previous_out.empty()) f += std::abs((double(out[i][k]) - previous_out[i][k]) - (double(ideal[i][k]) - previous_ideal[i][k]));
+                        }
+                        if (t >= measure_from && t < change_at) flicker_map[i] += float(f / 3);
+                        if (t >= measure_from && t < change_at) { error += e / 3; ++error_n; if (!previous_out.empty()) { flicker += f / 3; ++flicker_n; } }
+                        if (t >= change_at && t < change_at + 3) { after_change += e / 3; ++change_n; }
+                        if (m.swap && t >= swapped_at && t < swapped_at + 2) { swap_error += e / 3; ++swap_n; }
+                    }
+                    if (t == change_at - 1) {
+                        save(out, std::string(m.name));
+                        Image heat(out.size());
+                        for (size_t i = 0; i < heat.size(); ++i) { const float v = flicker_map[i] * 4; heat[i] = {v, v, v, 1}; }
+                        save(heat, std::string(m.name) + "-flicker");
+                    }
+                    if (t == change_at) save(out, std::string(m.name) + "-changed");
+                    previous_out = out; previous_ideal = ideal;
+                }
+                std::printf("%-16s error=%.4f flicker=%.4f after_change=%.4f edge_error=%.4f edge_flicker=%.4f", m.name, error / std::max<uint64_t>(error_n, 1),
+                    flicker / std::max<uint64_t>(flicker_n, 1), after_change / std::max<uint64_t>(change_n, 1), edge_error / std::max<uint64_t>(edge_n, 1),
+                    edge_flicker / std::max<uint64_t>(edge_flicker_n, 1));
+                if (m.swap) {
+                    std::printf(" swap_error=%.4f", swap_error / std::max<uint64_t>(swap_n, 1));
+                    material[2] = {gain[0], gain[1], gain[2], 0};
+                    upload(materials[0].Get(), material.data(), sizeof(material));
+                }
+                if (m.occluder) std::printf(" occluder_error=%.4f", occluder_error / std::max<uint64_t>(occluder_n, 1));
+                if (m.occluder && dlss_magenta) std::printf(" ring_trimmed=%.3f", ring_trimmed / std::max<uint64_t>(ring_n, 1));
+                if (m.windows) std::printf(" screen_dropped=%.3f (%llu px)", screen_dropped / std::max<uint64_t>(screen_n, 1), (unsigned long long)(screen_n / std::max(1, change_at - measure_from + 6)));
+                if (m.blank) {
+                    std::printf(" blank_dropped=%.3f", blank_dropped / std::max<uint64_t>(blank_n, 1));
+                    upload_display(0, join);
+                }
+                if (dlss_magenta) std::printf(" trim_flicker=%.4f trimmed=%.3f", trim_flicker / std::max<uint64_t>(trim_flicker_n, 1), trimmed / std::max<uint64_t>(trim_n, 1));
+                if (m.join || m.band) std::printf(" %s_error=%.4f %s_flicker=%.4f", m.band ? "band" : "join", join_error / std::max<uint64_t>(join_n, 1), m.band ? "band" : "join", join_flicker / std::max<uint64_t>(join_flicker_n, 1));
+                std::printf("\n");
+            }
+            set_temporal(0); set_smooth(0);
+            DeleteFileW((here / UVR_SETTINGS_FILE).c_str());
+            return debug_errors() ? 1 : 0;
+        }
         for (const auto& f : frames) {
+            frame_boundary();
             const bool experiment_frame = settings_live && (!std::strcmp(f.name,"static_a") || !std::strcmp(f.name,"static_b"));
             if (settings_live) {
                 const auto path = here / UVR_SETTINGS_FILE;
                 const bool negative = !std::strcmp(f.name,"warmup");
-                const wchar_t* keys[]{L"jitter_positive",L"line_smoothing",L"glass_strength",L"detail_clamp",L"edge_fade",L"angle_softening",L"edge_stretch",L"extra_smoothing",L"dark_screen_fix",L"seam_fix"};
-                const int expected[]{!std::strcmp(f.name,"flipped") ? 0 : 1, experiment_frame ? (!std::strcmp(f.name,"static_a") ? 100 : 50) : 0, !std::strcmp(f.name,"no_dlss_info") ? 50 : 100, experiment_frame ? 100 : 0,experiment_frame ? 250 : 0,experiment_frame ? 100 : 0,experiment_frame ? 400 : 0, !std::strcmp(f.name,"static_a") ? 1 : 0, experiment_frame ? 1 : 0, experiment_frame ? 0 : 1};
-                for (int i=0; i<10; ++i) {
+                const wchar_t* keys[]{L"jitter_positive",L"line_smoothing",L"glass_strength",L"detail_clamp",L"edge_fade",L"angle_softening",L"edge_stretch",L"extra_smoothing",L"dark_screen_fix",L"seam_fix",L"temporal_aa",L"soft_smoothing",L"stable_edges",L"full_size_sampling",L"calm_glass",L"edge_trim",L"occlusion_check"};
+                const int expected[]{!std::strcmp(f.name,"flipped") ? 0 : 1, experiment_frame ? (!std::strcmp(f.name,"static_a") ? 100 : 50) : 0, !std::strcmp(f.name,"no_dlss_info") ? 50 : 100, experiment_frame ? 100 : 0,experiment_frame ? 250 : 0,experiment_frame ? 100 : 0,experiment_frame ? 400 : 0, !std::strcmp(f.name,"static_a") ? 1 : 0, experiment_frame ? 1 : 0, experiment_frame ? 0 : 1, 0, experiment_frame ? 1 : 0, 1, 1, experiment_frame ? 1 : 0, experiment_frame ? 400 : 0, 1};
+                for (int i=0; i<17; ++i) {
                     int value = expected[i];
                     if (i>=3 && i<7 && experiment_frame) value=999;
                     if (i>=3 && i<7 && negative) value=-12;
                     if (i==1 && experiment_frame) value=999;
+                    if (i==10 && experiment_frame) value=1; // soft smoothing takes precedence
+                    if (i==15 && experiment_frame) value=999;
                     require(WritePrivateProfileStringW((i<3 || i==7) ? L"cockpit" : L"experimental", keys[i], std::to_wstring(value).c_str(), path.c_str()), "settings write failed");
                 }
                 Sleep(260); UvrFrameTick();
                 auto read = reinterpret_cast<void (*)(int*)>(GetProcAddress(addon,"GlassFixReadSettings"));
-                require(read != nullptr,"settings read fixture export missing"); int actual[10]{}; read(actual);
-                for (int i=0; i<10; ++i) require(actual[i]==expected[i], "renderer did not apply/clamp live setting");
+                require(read != nullptr,"settings read fixture export missing"); int actual[17]{}; read(actual);
+                for (int i=0; i<17; ++i) require(actual[i]==expected[i], "renderer did not apply/clamp live setting");
             }
             if (toggle_cockpit) {
 #ifdef UVR_GLASS_STANDALONE
@@ -784,6 +1330,10 @@ int main(int argc, char** argv) {
             // must leave both eyes unchanged; subsequent frames must recover.
             const bool stale_session_map = session_cycle && !std::strcmp(f.name, "static_b");
             if (stale_session_map) { UvrSetSessionActive(1, false); UvrSetSessionActive(1, true); }
+            if (vr_recovery) {
+                auto exhaust = reinterpret_cast<void(*)()>(GetProcAddress(addon,"GlassFixTestExhaustViews"));
+                require(exhaust != nullptr,"view recovery test export missing"); exhaust();
+            }
           for (UINT call = 0; call < views; ++call) {
             const UINT eye = views - 1 - call; // out of layer order
             const auto& ref = refs[eye];
@@ -835,6 +1385,16 @@ int main(int argc, char** argv) {
                     require(evaluate(list.Get(), nullptr, &extra, nullptr) == NVSDK_NGX_Result_Success, "evaluate (extra pass) failed");
                 }
                 require(evaluate(list.Get(), nullptr, &ngx, nullptr) == NVSDK_NGX_Result_Success, "evaluate failed");
+                // --fg-repeat: like the sim with DLSS Frame Generation, two more upscaler runs for the same frame into the
+                // same output, each replacing the picture (the fix must end up on the last one).
+                for (int again = 0; fg_repeat && again < 2; ++again) {
+                    transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST);
+                    D3D12_TEXTURE_COPY_LOCATION to{output.Get(), D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX}, from{prefill_upload.Get(), D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
+                    from.PlacedFootprint = out_rb.footprint;
+                    list->CopyTextureRegion(&to, 0, 0, 0, &from, nullptr);
+                    transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    require(evaluate(list.Get(), nullptr, &ngx, nullptr) == NVSDK_NGX_Result_Success, "evaluate (repeat) failed");
+                }
             }
             transition(list.Get(), output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
             copy(list.Get(), output.Get(), out_rb);

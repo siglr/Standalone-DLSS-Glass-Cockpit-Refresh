@@ -15,7 +15,7 @@ BEGIN
             VALUE "FileDescription", "Removes DLSS and FSR ghosting from MSFS 2024 glass cockpit displays"
             VALUE "FileVersion", GLASS_VERSION_STRING
             VALUE "InternalName", "glass-cockpit-dlss-fix"
-            VALUE "LegalCopyright", "Copyright (c) 2026 IFreemz. MIT license."
+            VALUE "LegalCopyright", "Copyright (c) 2026 IFreemz. GPL-3.0-only; see NOTICE.md. Modified standalone build."
             VALUE "OriginalFilename", "glass-cockpit-dlss-fix.addon64"
             VALUE "ProductName", GLASS_NAME
             VALUE "ProductVersion", GLASS_VERSION_STRING

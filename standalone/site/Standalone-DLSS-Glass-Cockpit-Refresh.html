@@ -18,6 +18,7 @@
     @media(max-width:850px){.hero{gap:28px;padding:48px 0}.instrument{padding:16px}.operation{gap:32px;grid-template-columns:1fr 1.2fr}.steps{gap:14px}.steps li{padding:22px 18px}.nav{gap:18px}.brand img{width:175px}.control{grid-template-columns:108px 1fr;gap:16px}}
     @media(max-width:650px){.wrap{padding:0 22px}.header-inner{min-height:87px;gap:15px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}.brand img{width:150px;max-height:62px}.nav .section-link{display:none}.nav .contribute{font-size:12px;padding:8px 11px}.hero{grid-template-columns:1fr;padding:40px 0 34px;gap:32px}h1{font-size:43px}.lead{font-size:16px}.instrument{max-width:420px;width:100%;margin:auto;padding:22px}.highlights{grid-template-columns:1fr;gap:21px;padding:26px 0}.section{padding:40px 0}.section-heading{display:block}.section-heading p{margin-top:12px}.steps{grid-template-columns:1fr;gap:15px}.steps li{padding:23px}.steps li:before{margin-bottom:14px}.operation{grid-template-columns:1fr;gap:28px}.control{grid-template-columns:110px 1fr;gap:18px}.support{display:block}.support .button{margin-top:22px}.footer-inner{display:block}.footer-home{display:inline-block;margin-top:15px}.answer{padding-right:0}h2{font-size:27px}.download-meta{line-height:1.8}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+      .button[hidden]{display:none}
   </style>
 </head>
 <body>
@@ -26,7 +27,7 @@
     <div class="wrap header-inner">
       <a class="brand" href="https://wesimglide.org/" aria-label="WeSimGlide home"><img src="https://wesimglide.org/images/WeSimGlide.png" alt="WeSimGlide" width="210" decoding="async"></a>
       <nav class="nav" aria-label="Main navigation">
-        <a class="other-tools" href="index.html">Other tools</a>
+        <a class="other-tools" href="index.html">All tools</a>
         <a class="section-link" href="#install">Install</a><a class="section-link" href="#operate">Use the mod</a><a class="section-link" href="#help">Help</a><a class="section-link" href="#source">Source code</a>
         <a class="contribute" href="https://wesimglide.org/?tab=about">Contribute ↗</a>
       </nav>
@@ -93,7 +94,7 @@
       <dl class="controls">
         <div class="control"><dt>Enable / disable</dt><dd>Toggle <strong>Enable glass-cockpit refresh fix</strong>. The change applies while the simulator renders; this does not unload the mod.</dd></div>
         <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing, or use the green tint briefly to see which screens are being corrected. Hover over controls for explanations.</dd></div>
-        <div class="control"><dt>Advanced &amp;<br>Experimental</dt><dd>Fine-tune only when needed for a particular aircraft. Each tab has a reset button to restore the author’s defaults for that group.</dd></div>
+        <div class="control"><dt>Advanced &amp;<br>Experimental</dt><dd>Fine-tune only when needed for a particular aircraft. Scroll Experimental for all options. Stable edges, full-size sampling and occlusion checking default to ON; temporal anti-aliasing, soft smoothing and calm glass default to OFF. Temporal anti-aliasing uses extra VRAM. Each tab has a reset button for the author’s defaults.</dd></div>
         <div class="control"><dt>Update</dt><dd>The app checks for new releases at launch and reopens after updating itself. If the files installed in MSFS also need updating, close MSFS and click <strong>Update</strong>. The button is greyed out when those DLLs already match. Your settings are kept.</dd></div>
         <div class="control"><dt>Uninstall</dt><dd>Close MSFS, reopen the app and click <strong>Uninstall</strong>. It removes the mod’s installed files and restores originals that it backed up. No manual DLL copying is needed.</dd></div>
       </dl>
@@ -136,8 +137,8 @@
     <section id="source" class="section" aria-labelledby="source-title">
       <div class="section-heading"><h2 id="source-title">See how the mod works.</h2><p>Public source. Clear licensing.</p></div>
       <p>The standalone tool's source code is available on GitHub, including the launcher, installer, update verification, and the rendering components used by the glass fix. The repository includes build instructions, offline tests, upstream version information and a description of the app's security behavior.</p>
-      <p>You can inspect the code and build your own version. My original code is licensed under <strong>PolyForm Noncommercial 1.0.0</strong>, allowing noncommercial use, modification and sharing under its terms. ReShade, the original glass fix and other dependencies retain their own licenses. This is source-available software; commercial use of my original code is not permitted by this license.</p>
-      <p><a class="button secondary" href="https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh">View source on GitHub &#8599;</a></p>
+      <p>You can inspect the code and build your own version. The separate installer/settings/updater app uses <strong>PolyForm Noncommercial 1.0.0</strong>. The combined graphics engine uses <strong>GPL-3.0-only</strong>, including my engine changes, with the original author's attribution terms; commercial redistribution of the engine is permitted under those terms. This is a modified, unofficial build based on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a>. ReShade and other dependencies retain their notices. Matching complete source accompanies each new release.</p>
+      <p><a class="button secondary" href="https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh">View source on GitHub &#8599;</a> <a id="source-download" class="button secondary" hidden>Download matching source ZIP</a></p>
       <p class="small-note">Publishing source makes the app easier to inspect. It does not certify the download as safe or guarantee antivirus clearance. A local source build is not claimed to be byte-for-byte identical to the official download; development builds use their own signing key and have automatic official updates disabled. For normal installation, use the complete ZIP linked above.</p>
     </section>
     <section id="help" class="section" aria-labelledby="help-title">
@@ -198,7 +199,7 @@
       <a class="button secondary" href="https://wesimglide.org/?tab=about">Contribute to WeSimGlide ↗</a>
     </section>
   </main>
-  <footer><div class="wrap footer-inner"><p>Built on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">IFreemz’s Glass Cockpit DLSS Fix</a> and <a href="https://github.com/crosire/reshade">ReShade by crosire</a>. Upstream licenses are included in the ZIP.<br>Community test release. Results vary by aircraft and setup. <a href="Standalone-DLSS-Glass-Cockpit-Refresh.version.json">Release information</a></p><a class="footer-home" href="https://wesimglide.org/">Back to WeSimGlide ↗</a></div></footer>
+  <footer><div class="wrap footer-inner"><p>Built on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a> and <a href="https://github.com/crosire/reshade">ReShade by crosire</a>. Upstream licenses are included in the ZIP.<br>Community test release. Results vary by aircraft and setup. <a href="Standalone-DLSS-Glass-Cockpit-Refresh.version.json">Release information</a></p><a class="footer-home" href="https://wesimglide.org/">Back to WeSimGlide ↗</a></div></footer>
   <script>
     // All file hashing happens locally. No file bytes are sent to the server.
     (async function () {
@@ -212,6 +213,9 @@
         if (!response.ok) throw new Error('Release information unavailable');
         const release = await response.json();
         if (release.schema !== 1 || release.product !== 'Standalone-DLSS-Glass-Cockpit-Refresh' || !/^\d+\.\d+\.\d+$/.test(release.version) || !/^[0-9a-f]{64}$/i.test(release.sha256) || !Number.isSafeInteger(release.size) || release.size <= 0 || release.size > 67108864) throw new Error('Invalid release information');
+        if (release.source === release.product + '-' + release.version + '-source.zip') {
+          const source = document.getElementById('source-download'); source.href = release.source; source.hidden = false;
+        }
         document.getElementById('release-version').textContent = 'v' + release.version + ' · Community test release';
         document.getElementById('release-size').textContent = '· ' + (release.size < 1048576 ? Math.ceil(release.size / 1024) + ' KB' : (release.size / 1048576).toFixed(1) + ' MB');
         document.getElementById('hash-version').textContent = 'Published ZIP · v' + release.version + ' · ' + release.size.toLocaleString() + ' bytes';

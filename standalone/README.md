@@ -1,8 +1,16 @@
 > Source builds are labeled **source build** and have official automatic app updates disabled. Use `python -B scripts/dev_package.py` to build an installable local package with your own key. The automatic-update instructions below describe official WeSimGlide binary releases.
 
-# Standalone-DLSS-Glass-Cockpit-Refresh v0.1.10
+# Standalone-DLSS-Glass-Cockpit-Refresh v1.0.0
 
-Glass Cockpit DLSS Fix v0.8.3 with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+Based on Glass Cockpit DLSS Fix by IFreemz v1.0.0 (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix), with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+
+## v1.0.0 graphics update
+
+Modified/unofficial Standalone Glass Graphics engine, based on IFreemz v1.0.0. Includes repeated-upscaler and VR view recovery fixes, per-mesh brightness, stable screen edges, depth-based occlusion and updated glass filtering. Experimental settings are scrollable. New defaults: stable edges, full-size sampling and occlusion check ON; temporal anti-aliasing, soft-edged smoothing and calm glass OFF; edge trim 0. Line smoothing remains 35. Temporal anti-aliasing and soft smoothing are alternatives. Temporal anti-aliasing allocates additional VRAM at output resolution; it is optional and off by default.
+
+Existing settings are preserved. Missing new settings use the author's defaults. Reset experimental restores those defaults. Close MSFS, let the app update, then click Update once to replace the simulator DLLs; uninstalling first is unnecessary. OFXR remains separate and unchanged.
+
+The graphics engine is GPL-3.0-only with the upstream NOTICE terms. The separate app remains PolyForm Noncommercial. See ENGINE-LICENSE.md and NOTICE.md. Matching complete source is distributed alongside this release.
 
 ## v0.1.10 appearance
 
@@ -29,7 +37,7 @@ This is an app-only detection update: existing simulator DLLs and your settings 
 
 ## Sharing with testers
 
-Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip**. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
+Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip** together with its matching **1.0.0-source.zip**, or provide access to that exact corresponding source alongside the binary download. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
 
 ## Files and recovery
 
@@ -51,19 +59,26 @@ This is an experimental build. Offline graphics/installer validation does not es
 
 ## Upstream and licenses
 
-Glass Cockpit DLSS Fix: IFreemz, MIT, v0.8.3 e7f4ff574ae8684f738f10c8d48574e74714830c.
+Glass Cockpit DLSS Fix by IFreemz: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix, v1.0.0, 9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa. GPL-3.0-only with the section 7 terms in licenses/glass/NOTICE.md. The full GPL is licenses/glass/LICENSE. This package contains the modified/unofficial Standalone Glass Graphics build.
 ReShade: crosire, BSD-3-Clause (selected files BSD/MIT), D3D12 subset based on 6a7eaf8dbf5ed7050de1afd381ff058dfb51935e.
 Original source pins, licenses and local adaptations are retained. This package does not contain OFXR code or binaries. Source: https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh. See the root README and NOTICE.md for source licensing; upstream licenses remain separate.
 
 Build: python scripts/build.py -S . -B build/standalone -G "Visual Studio 17 2022" -A x64 -DUVR_GLASS_STANDALONE=ON, then build Release there. Package with python standalone/package.py. See the repository README for the Windows toolchain requirements.
 
-## Glass controls (v0.8.3)
+## Glass controls (v1.0.0)
 
 Glass settings, Advanced and Experimental apply during upscaling without leaving VR. Values show requests, not confirmed runtime status. Hover over controls for explanations. No capture/report controls or keyboard shortcuts are included.
 
 | Setting | Range | Author default |
 |---|---|---|
 | Line smoothing | 0-50, or 0-100 with Extra | 35 |
+| Temporal anti-aliasing | Off/on; extra output-resolution VRAM | Off |
+| Soft-edged line smoothing | Off/on; alternative to temporal anti-aliasing | Off |
+| Stable screen edges | Off/on | On |
+| Full-size texture sampling | Off/on | On |
+| Calm glass at symbols | Off/on | Off |
+| Occlusion check | Off/on | On |
+| Edge trim | 0-400; 100 = one render pixel | 0 |
 | Extra smoothing | Off/on; above 50 softens the whole display | Off |
 | Green coverage tint | Off/on while this window is open | Off |
 | Flip jitter direction | Off/on | Off |
@@ -75,7 +90,7 @@ Glass settings, Advanced and Experimental apply during upscaling without leaving
 | Angle softening | 0-100% | 0 |
 | Edge stretcher | 0-400, where 100 = one render pixel | 0 |
 
-Each tab has its own reset button. Reset experimental restores UV seam fix ON and the other experimental options OFF/0. Dark screen fix can help mostly black displays in strong sun, but can interfere with other displays; enable it only for an affected aircraft. Switching Extra off clamps smoothing to 50; Reset glass restores 35 and Extra off. Green tint ends when the window closes. Other choices remain active without the window.
+Each tab has its own reset button. Reset experimental restores UV seam fix, stable edges, full-size sampling and occlusion check ON; the other experimental options return to OFF/0. Dark screen fix can help mostly black displays in strong sun, but can interfere with other displays; enable it only for an affected aircraft. Switching Extra off clamps smoothing to 50; Reset glass restores 35 and Extra off. Green tint ends when the window closes. Other choices remain active without the window.
 
 Updates preserve existing choices. New options missing from an older INI use the defaults above. Use the reset buttons if you want all glass settings restored to the author's defaults.
 

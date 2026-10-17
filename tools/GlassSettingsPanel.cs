@@ -26,6 +26,7 @@ internal sealed class GlassSettingsPanel : UserControl
     }
     readonly Func<string> ini;
     readonly Dictionary<string, NumericUpDown> values = new Dictionary<string, NumericUpDown>();
+    readonly Dictionary<string, CheckBox> switches = new Dictionary<string, CheckBox>();
     readonly CheckBox extra = new CheckBox { Text = "Extra (up to 100)", AutoSize = true };
     readonly CheckBox dark = new CheckBox { Text = "Dark screen fix", AutoSize = true };
     readonly CheckBox seam = new CheckBox { Text = "UV seam fix", AutoSize = true };
@@ -76,10 +77,25 @@ internal sealed class GlassSettingsPanel : UserControl
             "Softens screens viewed at steep angles; straight-on screens are unchanged.");
         Number(experimental, "Edge stretcher (100 = 1 pixel)", "edge_stretch", 400, 0, 140,
             "Extends the screen image towards its bezel. Measured in render pixels.");
-
-        resetExperimental = Reset(experimental, "Reset experimental", 185, delegate {
+        experimental.AutoScroll = true;
+        Switch(experimental, "Temporal anti-aliasing", "temporal_aa", false, 178,
+            "Smooths moving screen details using previous frames. Uses additional VRAM at output resolution; default off. Cannot combine with soft smoothing.");
+        Switch(experimental, "Soft-edged line smoothing", "soft_smoothing", false, 210,
+            "Uses a softer Gaussian filter. Default off; cannot combine with temporal anti-aliasing.");
+        Switch(experimental, "Stable screen edges", "stable_edges", true, 242,
+            "Stabilizes the screen boundaries. Author default on.");
+        Switch(experimental, "Full-size texture sampling", "full_size_sampling", true, 274,
+            "Samples the full-resolution display texture. Off uses the game's mip levels. Author default on.");
+        Switch(experimental, "Calm glass at symbols", "calm_glass", false, 306,
+            "Reduces glass detail from the upscaler beside symbols. Author default off.");
+        Switch(experimental, "Occlusion check", "occlusion_check", true, 338,
+            "Uses depth to leave objects in front of a screen to the upscaler. Author default on.");
+        Number(experimental, "Edge trim (100 = 1 pixel)", "edge_trim", 400, 0, 374,
+            "Leaves the outer screen edge to the upscaler. Reverse of edge stretcher; default 0.");
+        resetExperimental = Reset(experimental, "Reset experimental", 416, delegate {
             dark.Checked = false; seam.Checked = true;
-            foreach (string key in new[] { "detail_clamp", "edge_fade", "angle_softening", "edge_stretch" }) values[key].Value = 0;
+            foreach (string key in new[] { "detail_clamp", "edge_fade", "angle_softening", "edge_stretch", "edge_trim" }) values[key].Value = 0;
+            foreach (var item in switches) item.Value.Checked = (bool)item.Value.Tag;
         });
         flip.CheckedChanged += delegate { if (!refreshing) Save("jitter_positive", flip.Checked ? 0 : 1); };
         tint.CheckedChanged += delegate {
@@ -119,6 +135,16 @@ internal sealed class GlassSettingsPanel : UserControl
         tips.SetToolTip(label, help); tips.SetToolTip(number, help);
         number.ValueChanged += delegate { if (!refreshing) Save(key, (int)number.Value); };
     }
+    void Switch(Control page, string text, string key, bool fallback, int y, string help) {
+        var box = new CheckBox { Text=text, Left=16, Top=y, Width=560, Height=28, Checked=fallback, Tag=fallback };
+        switches.Add(key, box); page.Controls.Add(box); tips.SetToolTip(box, help);
+        box.CheckedChanged += delegate {
+            if (refreshing) return;
+            if (box.Checked && (key == "temporal_aa" || key == "soft_smoothing"))
+                switches[key == "temporal_aa" ? "soft_smoothing" : "temporal_aa"].Checked = false;
+            Save(key, box.Checked ? 1 : 0);
+        };
+    }
     void Save(string key, int value) {
         if (!Enabled || !File.Exists(ini()) || !WritePrivateProfileString(Section(key), key, value.ToString(), ini())) {
             RefreshValues(Enabled);
@@ -133,6 +159,9 @@ internal sealed class GlassSettingsPanel : UserControl
         values["line_smoothing"].Maximum = extra.Checked ? 100 : 50;
         dark.Checked = available && GetPrivateProfileInt("experimental", "dark_screen_fix", 0, ini()) != 0;
         seam.Checked = !available || GetPrivateProfileInt("experimental", "seam_fix", 1, ini()) != 0;
+        foreach (var item in switches)
+            item.Value.Checked = available ? GetPrivateProfileInt("experimental", item.Key, (bool)item.Value.Tag ? 1 : 0, ini()) != 0 : (bool)item.Value.Tag;
+        if (switches["soft_smoothing"].Checked) switches["temporal_aa"].Checked = false;
         foreach (var item in values) {
             // Do not interrupt a user typing a number with the one-second UI refresh.
             if (item.Value.ContainsFocus) continue;
@@ -150,6 +179,14 @@ internal sealed class GlassSettingsPanel : UserControl
     internal void SelfTest(string preview) {
         byte[] original = File.ReadAllBytes(ini());
         try {
+            foreach (var item in switches) {
+                item.Value.Checked = !(bool)item.Value.Tag;
+                if (GetPrivateProfileInt("experimental", item.Key, 999, ini()) != (item.Value.Checked ? 1u : 0u)) throw new Exception("Switch write failed: " + item.Key);
+            }
+            switches["temporal_aa"].Checked = true;
+            if (switches["soft_smoothing"].Checked || GetPrivateProfileInt("experimental", "soft_smoothing", 999, ini()) != 0) throw new Exception("Exclusive smoothing failed");
+            switches["soft_smoothing"].Checked = true;
+            if (switches["temporal_aa"].Checked || GetPrivateProfileInt("experimental", "temporal_aa", 999, ini()) != 0) throw new Exception("Exclusive temporal failed");
             extra.Checked = true; dark.Checked = true; seam.Checked = false;
             foreach (var item in values) {
                 item.Value.Value = item.Value.Maximum;
@@ -166,6 +203,7 @@ internal sealed class GlassSettingsPanel : UserControl
             SelectedIndex = 0; resetGlass.PerformClick();
             SelectedIndex = 1; resetAdvanced.PerformClick();
             SelectedIndex = 2; resetExperimental.PerformClick();
+            foreach (var item in switches) if (item.Value.Checked != (bool)item.Value.Tag || GetPrivateProfileInt("experimental", item.Key, 999, ini()) != ((bool)item.Value.Tag ? 1u : 0u)) throw new Exception("Reset switch failed: " + item.Key);
             foreach (var item in values) if (GetPrivateProfileInt(Section(item.Key), item.Key, 999, ini()) != (uint)(int)item.Value.Tag) throw new Exception("Reset failed: " + item.Key);
             if (extra.Checked || dark.Checked || !seam.Checked || flip.Checked || tint.Checked || tintEvent.WaitOne(0)) throw new Exception("Reset toggles failed");
             for (int i = 0; i < 3; ++i) {

@@ -2,9 +2,9 @@
 
 Glass Cockpit DLSS Fix for **Microsoft Flight Simulator 2024**, with the required ReShade D3D12 components built in and a small install/uninstall/settings window. Desktop and VR; no separate ReShade installation or menu is needed. It does not include frame generation. Official OFXR Bridge can be installed separately.
 
-**Source-available for noncommercial use.** You may fork, modify and share the original code for the purposes permitted by [PolyForm Noncommercial 1.0.0](LICENSE.md). Commercial use of that code is not granted. Upstream glass-fix, ReShade and dependency licenses remain intact; see [NOTICE.md](NOTICE.md). This distinction applies even though this repository is public.
+**Separate licenses:** the installer/settings/updater app is source-available under [PolyForm Noncommercial 1.0.0](LICENSE.md). The combined graphics engine is **GPL-3.0-only**, including this project's engine changes, with the upstream NOTICE terms. See [engine licensing and corresponding source](ENGINE-LICENSE.md) and [attribution](NOTICE.md).
 
-The v0.1.10 control window adopts WeSimGlide's Dark/Light themes and embedded logo, with the same compact layout and all existing settings/reset controls.
+Version **1.0.0** integrates **Glass Cockpit DLSS Fix by IFreemz v1.0.0** as a modified, unofficial **Standalone Glass Graphics** build. It adds upstream rendering corrections, per-mesh brightness, depth-based occlusion and new experimental controls, retaining the author's defaults. The separate official OFXR Bridge and its settings are untouched.
 
 ## Use the mod
 
@@ -50,7 +50,7 @@ This repository is the authoritative source for standalone development and relea
 
 - `standalone/`: C# window, native setup/discovery, authenticated updater, defaults and package tooling.
 - `src/`, `include/`: DXGI bootstrap and minimal rendering host. Internal UVR names are retained to minimize changes to the tested rendering ABI.
-- `vendor/glass/`: glass fix v0.8.3 and offline rendering fixtures, with standalone adaptations.
+- `vendor/glass/`: glass fix v1.0.0 and offline rendering fixtures, with standalone adaptations.
 - `vendor/reshade/`: selected D3D12/DXGI sources and required headers/dependencies, not the full ReShade application.
 - `tests/`: installation, discovery, update and graphics checks.
 - `tools/`, `scripts/`: shared settings controls, maintainer signing tool and build/development-package helpers.
@@ -61,4 +61,4 @@ This repository is the authoritative source for standalone development and relea
 
 For an MSFS issue, first compare with the original add-on installed/configured through ReShade, with this package uninstalled. If only this package fails, open an issue here or contact me through the WSG Discord linked from [WeSimGlide](https://wesimglide.org/). Never post credentials, signing keys or personal files. Keep antivirus enabled and do not treat a checksum or scan as a safety certification.
 
-Contributions to original code are accepted under this repository's PolyForm Noncommercial terms; third-party changes retain the applicable upstream licenses. There is no requirement to contribute your noncommercial fork back, but improvements and reproducible bug reports are welcome.
+Contributions follow the license of the component being changed: GPL-3.0-only plus upstream NOTICE terms for the graphics engine, PolyForm Noncommercial for the separate app. Improvements and reproducible bug reports are welcome.

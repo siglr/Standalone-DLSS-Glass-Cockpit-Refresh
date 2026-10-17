@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <d3d12.h>
+#include <dxgi1_4.h>
 #include <stdint.h>
 #ifdef UVR_GRAPHICS_EXPORTS
 #define UVR_API extern "C" __declspec(dllexport)
@@ -12,6 +13,8 @@ UVR_API bool UvrInitialize();
 UVR_API void UvrSetSessionActive(uint64_t session, bool active);
 UVR_API bool UvrGlassActive();
 UVR_API void UvrFrameTick();
+// Observe native presents without wrapping the swapchain or loading an effects runtime.
+void UvrObserveSwapchain(IDXGISwapChain* swapchain);
 UVR_API bool UvrCockpitEnabled();
 UVR_API void UvrSetCockpitEnabled(bool enabled);
 UVR_API ID3D12Device* UvrNativeDevice(ID3D12Device* device);

@@ -1,10 +1,11 @@
 {
   "product": "Standalone-DLSS-Glass-Cockpit-Refresh",
-  "version": "0.1.10",
+  "version": "1.0.0",
   "glass": {
     "repository": "https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix",
-    "release": "v0.8.3",
-    "commit": "e7f4ff574ae8684f738f10c8d48574e74714830c"
+    "release": "v1.0.0",
+    "commit": "9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa",
+    "license": "GPL-3.0-only with upstream NOTICE.md section 7 terms"
   },
   "reshade": {
     "repository": "https://github.com/crosire/reshade",
@@ -19,6 +20,9 @@
     "Live glass/advanced/experimental options and transient green tint; author defaults and resets",
     "Preserve native upscaler output until a newly accepted display has current glass residuals",
     "Monotonic expiry for extra-pass selection and desktop map reuse in the upscaler-driven host",
-    "Direct updates preserve the whole settings file and original uninstall backups; rollback/recovery journal"
+    "Direct updates preserve the whole settings file and original uninstall backups; rollback/recovery journal",
+    "Native Present/Present1 frame boundaries without effects runtime; monotonic map/history expiry retained",
+    "v1.0.0 shaders and experimental settings; no capture/pixel-probe/report subsystem or hotkeys",
+    "GPL combined graphics engine; separate PolyForm Noncommercial installer/settings/updater"
   ]
 }

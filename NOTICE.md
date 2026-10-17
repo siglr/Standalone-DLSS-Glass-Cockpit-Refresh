@@ -2,13 +2,15 @@
 
 Required Notice: Copyright (c) 2026 siglr (https://github.com/siglr)
 
-Original standalone application, installer, host integration, build scripts, tests and documentation outside `vendor/` are offered under **PolyForm Noncommercial License 1.0.0**, in LICENSE.md. This permits the noncommercial uses, modifications and redistribution specified by that license. Commercial use of that original code is not granted. This is source-available software, not OSI open-source software.
+The separate original C# application, installer, updater and their support code remain under **PolyForm Noncommercial 1.0.0**, in LICENSE.md. The **combined graphics engine is GPL-3.0-only**, including the host integration and local engine changes, with the upstream section 7 terms. See [ENGINE-LICENSE.md](ENGINE-LICENSE.md) for the explicit file boundary, commercial redistribution rights for the engine, and corresponding-source delivery.
 
-Third-party code is **not relicensed** under PolyForm. Files under `vendor/`, including retained local adaptations in those files, remain under their existing upstream terms and notices. Those licenses can permit commercial reuse of those components separately; that does not grant commercial rights to the original standalone application code.
+Based on **Glass Cockpit DLSS Fix by IFreemz**: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix. **Standalone Glass Graphics is a modified, unofficial build**, not an IFreemz release or endorsement. Package support: https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh/issues.
+
+Third-party licenses and copyright notices remain in force for their respective components.
 
 | Component | Upstream | License location |
 |---|---|---|
-| Glass Cockpit DLSS Fix v0.8.3 | IFreemz | vendor/glass/LICENSE (MIT) |
+| Glass Cockpit DLSS Fix v1.0.0 | IFreemz | vendor/glass/LICENSE (GPL-3.0-only) and vendor/glass/NOTICE.md |
 | ReShade D3D12 subset | Patrick Mours / crosire | vendor/reshade/LICENSE.md (BSD-3-Clause; preserve file-specific notices) |
 | DirectX-Headers | Microsoft | vendor/reshade/deps/d3d12/LICENSE (MIT) |
 | D3D12On7 header | Microsoft | vendor/reshade/deps/d3d12on7/LICENSE.txt |

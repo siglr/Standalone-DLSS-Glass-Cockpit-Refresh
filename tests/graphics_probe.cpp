@@ -115,6 +115,47 @@ int main(int argc, char** argv) {
             dump(queue.Get());
             check(valid, "matching D32 clear");
         }
+        if (backend) {
+            const auto count = reinterpret_cast<uint64_t(*)()>(GetProcAddress(backend, "GlassFixFrameCount"));
+            if (!count) throw std::runtime_error("frame count export unavailable");
+            WNDCLASSW wc{}; wc.lpfnWndProc = DefWindowProcW; wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"GlassOfflinePresent";
+            RegisterClassW(&wc);
+            HWND window = CreateWindowW(wc.lpszClassName, L"Offline frame boundary test", WS_OVERLAPPEDWINDOW, 0, 0, 320, 240, nullptr, nullptr, wc.hInstance, nullptr);
+            if (!window) throw std::runtime_error("test window creation failed");
+            ComPtr<ID3D12CommandQueue> command_queue;
+            D3D12_COMMAND_QUEUE_DESC q{};
+            check(device->CreateCommandQueue(&q, IID_PPV_ARGS(&command_queue)), "present queue");
+            DXGI_SWAP_CHAIN_DESC1 sd{}; sd.Width=320; sd.Height=240; sd.Format=DXGI_FORMAT_R8G8B8A8_UNORM; sd.SampleDesc.Count=1;
+            sd.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT; sd.BufferCount=2; sd.SwapEffect=DXGI_SWAP_EFFECT_FLIP_DISCARD;
+            ComPtr<IDXGISwapChain1> swapchain;
+            check(factory->CreateSwapChainForHwnd(command_queue.Get(), window, &sd, nullptr, nullptr, &swapchain), "native swapchain");
+            auto before = count();
+            const auto set_enabled = reinterpret_cast<void(*)(bool)>(GetProcAddress(backend, "UvrSetCockpitEnabled"));
+            const auto is_enabled = reinterpret_cast<bool(*)()>(GetProcAddress(backend, "UvrCockpitEnabled"));
+            if (!set_enabled || !is_enabled) throw std::runtime_error("settings exports unavailable");
+            set_enabled(false);
+            check(swapchain->Present(0, DXGI_PRESENT_TEST), "test present");
+            if (count() != before) throw std::runtime_error("test present incorrectly counted");
+            if (is_enabled()) throw std::runtime_error("test present incorrectly polled settings");
+            check(swapchain->Present(0, 0), "present");
+            if (count() != ++before) throw std::runtime_error("present did not count exactly once");
+            if (!is_enabled()) throw std::runtime_error("present maintenance failed without upscaler calls");
+            DXGI_PRESENT_PARAMETERS pp{};
+            check(swapchain->Present1(0, 0, &pp), "present1");
+            if (count() != ++before) throw std::runtime_error("present1 did not count exactly once");
+            check(swapchain->Present1(0, DXGI_PRESENT_TEST, &pp), "test present1");
+            if (count() != before) throw std::runtime_error("test present1 incorrectly counted");
+            ComPtr<ID3D12Fence> fence;
+            check(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "present fence");
+            check(command_queue->Signal(fence.Get(), 1), "wait for present GPU work");
+            HANDLE done = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+            if (!done) throw std::runtime_error("present fence event");
+            check(fence->SetEventOnCompletion(1, done), "present fence completion");
+            const DWORD wait = WaitForSingleObject(done, 10000); CloseHandle(done);
+            if (wait != WAIT_OBJECT_0) throw std::runtime_error("present GPU wait timed out");
+            fence.Reset();
+            swapchain.Reset(); command_queue.Reset(); DestroyWindow(window);
+        }
         std::puts("PROBE PASSED");
         return 0;
     } catch (const std::exception& e) {

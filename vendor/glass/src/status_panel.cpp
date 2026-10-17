@@ -43,13 +43,13 @@ std::string summary(const glass::Status& s) {
 
 std::string report(const glass::Status& s) {
     return format("Glass Cockpit DLSS Fix %s\nstatus: %s\ngpu: %s (driver %s)\ndlss: %s, calls=%llu upscales=%llu\nfsr: %s, calls=%llu\nshader_found=%d screen_draws=%llu recorded=%llu overlay_frames=%llu skipped=%llu\n"
-        "enabled=%d jitter_positive=%d tint=%d line_smoothing=%d glass_strength=%d\n"
-        "detail_clamp=%d edge_fade=%d angle_softening=%d edge_stretch=%d\n",
+        "enabled=%d jitter_positive=%d tint=%d line_smoothing=%d extra_smoothing=%d glass_strength=%d\n"
+        "detail_clamp=%d edge_fade=%d angle_softening=%d edge_stretch=%d edge_trim=%d dark_screen_fix=%d seam_fix=%d full_size_sampling=%d stable_edges=%d temporal_aa=%d soft_smoothing=%d calm_glass=%d occlusion_check=%d\n",
         GLASS_VERSION_STRING, summary(s).c_str(), s.gpu.empty() ? "unknown" : s.gpu.c_str(), s.driver.c_str(),
         s.dlss_loaded ? (s.dlss_version.empty() ? "loaded" : s.dlss_version.c_str()) : "not loaded", s.dlss_calls, s.dlss_upscales,
         s.fsr_loaded ? (s.fsr_version.empty() ? "loaded" : s.fsr_version.c_str()) : "not loaded", s.fsr_calls, s.shader_found, s.screen_draws,
-        s.recorded, s.overlay_frames, s.skipped, s.enabled, s.jitter_positive, s.tint, s.line_smoothing, s.glass_strength,
-        s.experimental.detail_clamp, s.experimental.edge_fade, s.experimental.angle_softening, s.experimental.edge_stretch);
+        s.recorded, s.overlay_frames, s.skipped, s.enabled, s.jitter_positive, s.tint, s.line_smoothing, s.extra_smoothing, s.glass_strength,
+        s.experimental.detail_clamp, s.experimental.edge_fade, s.experimental.angle_softening, s.experimental.edge_stretch, s.experimental.edge_trim, s.experimental.dark_screens, s.experimental.seam_fix, s.experimental.full_size, s.experimental.stable_edges, s.experimental.temporal_aa, s.experimental.soft_smoothing, s.experimental.calm_glass, s.experimental.occlusion_check);
 }
 
 void draw(reshade::api::effect_runtime*) {
@@ -65,10 +65,15 @@ void draw(reshade::api::effect_runtime*) {
     bool enabled = s.enabled, tint = s.tint;
     int smoothing = s.line_smoothing;
     if (ImGui::Checkbox("Fix enabled  (Ctrl+Shift+F9)", &enabled)) glass::set_enabled(enabled);
-    if (ImGui::SliderInt("Line smoothing", &smoothing, 0, 50, smoothing ? "%d%%" : "off (sharpest)", ImGuiSliderFlags_AlwaysClamp))
+    bool extra = s.extra_smoothing;
+    if (ImGui::SliderInt("Line smoothing", &smoothing, 0, extra ? 100 : 50, smoothing ? "%d%%" : "off (sharpest)", ImGuiSliderFlags_AlwaysClamp))
         glass::set_line_smoothing(smoothing);
-    ImGui::SetItemTooltip("Smooths stair steps on thin slanted lines, like DLSS did. 0 = sharpest, 35 = default, 50 = softest.\n"
+    ImGui::SetItemTooltip("Smooths stair steps and shimmer on thin lines, like DLSS did. 0 = sharpest, 35 = default, 50 = like DLSS.\n"
         "Ctrl+click to type a value.");
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Extra", &extra)) glass::set_extra_smoothing(extra);
+    ImGui::SetItemTooltip("Lets Line smoothing go up to 100 %% for stubborn shimmer (e.g. in VR).\n"
+        "Above 50 the whole screen picture gets softer than with DLSS alone.");
     if (ImGui::Checkbox("Green tint on fixed screens  (Ctrl+Shift+F11)", &tint)) glass::set_tint(tint);
     if (!(s.experimental == glass::Experimental{})) ImGui::TextColored(yellow, "Experimental fixes changed (see Troubleshooting below)");
     if (!s.jitter_positive || s.glass_strength != 100) ImGui::TextColored(yellow, "Advanced settings changed (see Troubleshooting below)");
@@ -99,18 +104,82 @@ void draw(reshade::api::effect_runtime*) {
     }
     ImGui::SameLine();
     if (ImGui::Button("Copy report")) ImGui::SetClipboardText(report(s).c_str());
+    ImGui::SameLine();
+    if (ImGui::Button("Capture screens  (Ctrl+Shift+F8)")) glass::request_capture();
+    ImGui::SetItemTooltip("Saves 8 frames as sent to the monitor and 4 frames over about a third of a second as pictures next to the log: the sim's own frame, the upscaled frame before and\n"
+        "after the fix, and the screen map. Use it with the problem visible on screen. Also saves one .zip with the pictures and both logs: attach that to a bug report.");
+    if (!s.capture.empty()) ImGui::TextColored(grey, "%s", s.capture.c_str());
+    if (ImGui::Button("Pixel probe  (Ctrl+Shift+F10)")) glass::request_pixel_probe();
+    ImGui::SetItemTooltip("Logs every draw that reaches the pixel in the middle of the view (marked with a small cross while this section is open),\n"
+        "with its shaders and textures: shows how something on a screen is drawn. Put it in the middle of the view first.");
+    {
+        // The middle of the view, for aiming the pixel probe.
+        const ImVec2 size = ImGui::GetIO().DisplaySize, c{size.x * 0.5f, size.y * 0.5f};
+        auto* draw = ImGui::GetForegroundDrawList();
+        draw->AddLine({c.x - 14, c.y}, {c.x - 4, c.y}, IM_COL32(255, 60, 60, 255), 2); draw->AddLine({c.x + 4, c.y}, {c.x + 14, c.y}, IM_COL32(255, 60, 60, 255), 2);
+        draw->AddLine({c.x, c.y - 14}, {c.x, c.y - 4}, IM_COL32(255, 60, 60, 255), 2); draw->AddLine({c.x, c.y + 4}, {c.x, c.y + 14}, IM_COL32(255, 60, 60, 255), 2);
+    }
     ImGui::TextColored(grey, "For bug reports, attach glass-cockpit-dlss-fix.log and .old.log from the log folder.");
 
     // Fixes for problems only some aircraft have; collapsed, and each can be undone with Reset to defaults.
     if (ImGui::TreeNode("Experimental fixes (for problems on some aircraft)")) {
         glass::Experimental e = s.experimental;
-        bool changed = ImGui::SliderInt("Detail clamp", &e.detail_clamp, 0, 100, e.detail_clamp ? "%d%%" : "off", ImGuiSliderFlags_AlwaysClamp);
+        bool seam = e.seam_fix != 0;
+        bool changed = ImGui::Checkbox("UV seam fix (on by default)", &seam);
+        ImGui::SetItemTooltip("Removes thin lines where a screen's picture meets a part of the same screen that points elsewhere\n"
+            "in its texture (e.g. the bezel band on the FSS E-Jets).");
+        e.seam_fix = seam ? 1 : 0;
+        bool full_size = e.full_size != 0;
+        changed |= ImGui::Checkbox("Full-size sampling (on by default)  (Ctrl+Shift+F7)", &full_size);
+        ImGui::SetItemTooltip("Reads the screens only from their full-size picture, with more samples where a screen is small on your monitor.\n"
+            "Off: also from the smaller copies the GPU keeps for distant screens, which can shimmer when you zoom out.");
+        e.full_size = full_size ? 1 : 0;
+        bool stable = e.stable_edges != 0;
+        changed |= ImGui::Checkbox("Stable screen edges (on by default)", &stable);
+        ImGui::SetItemTooltip("Keeps the pixels along each screen's edge from shimmering: where a screen ends is learnt over a few frames\n"
+            "instead of judged anew every frame. Turn off if a screen's edge looks cut off or too wide.");
+        e.stable_edges = stable ? 1 : 0;
+        bool occlusion = e.occlusion_check != 0;
+        changed |= ImGui::Checkbox("Occlusion check (on by default)", &occlusion);
+        ImGui::SetItemTooltip("Leaves the sim's own picture wherever something sits in front of a screen (a sidestick, a hand, the yoke),\n"
+            "using the sim's depth buffer. Off: a screen can be drawn over things in front of it, e.g. the A380 EFB over the sidestick.");
+        e.occlusion_check = occlusion ? 1 : 0;
+        bool calm_glass = e.calm_glass != 0;
+        changed |= ImGui::Checkbox("Calm glass at symbols", &calm_glass);
+        ImGui::SetItemTooltip("Right next to symbols and lines, the glass effects (dirt, glare, reflections) are drawn without their finest\n"
+            "detail, which flickers there (e.g. along the E-Jet's altitude and vertical speed tapes). Away from symbols nothing changes.\n"
+            "Turn off if something drawn over a screen (a highlight, a cursor) looks blurred.");
+        e.calm_glass = calm_glass ? 1 : 0;
+        bool dark = e.dark_screens != 0;
+        changed |= ImGui::Checkbox("Dark screen fix", &dark);
+        ImGui::SetItemTooltip("Keeps mostly black screens with thin symbols (e.g. the F/A-18E's) fixed in strong sun glare.\n"
+            "Can also let the fix draw over a screen whose picture it can't redraw.");
+        e.dark_screens = dark ? 1 : 0;
+        // One or the other: ticking one unticks the other.
+        bool soft = e.soft_smoothing != 0, temporal = e.temporal_aa != 0;
+        if (ImGui::Checkbox("Soft-edged line smoothing", &soft)) { changed = true; if (soft) temporal = false; }
+        ImGui::SetItemTooltip("Line smoothing weighted towards each pixel's centre over a wider area: smoother screens with less shimmer\n"
+            "while the view moves. Plain Line smoothing works well on most aircraft; try this if screens still shimmer\n"
+            "while you move your head. A matter of taste. Needs Line smoothing above 0.");
+        if (ImGui::Checkbox("Temporal anti-aliasing", &temporal)) { changed = true; if (temporal) soft = false; }
+        ImGui::SetItemTooltip("Smooths screen text and lines over several frames, like the sim's own TAA, without the trails:\n"
+            "the history is dropped wherever a screen's picture changes. Plain Line smoothing works well on most aircraft;\n"
+            "try this if you want sharper text that still doesn't stair-step, with Line smoothing at 0-20.\n"
+            "Uses some extra video memory (about 100 MB at 4K).");
+        e.soft_smoothing = soft ? 1 : 0;
+        e.temporal_aa = temporal ? 1 : 0;
+        changed |= ImGui::SliderInt("Edge trim", &e.edge_trim, 0, 400, e.edge_trim ? "%d" : "off", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SetItemTooltip("Leaves the outer edge of every screen to the sim's own picture, in hundredths of a render pixel\n"
+            "(100 = 1 pixel). The reverse of the edge stretcher: for screens whose fixed edge shows a sliver of something\n"
+            "that isn't there, or jagged edges. 50 calms most flickering or shimmering screen edges; up to 150 for aircraft\n"
+            "with stronger edge problems. Within that band the upscaler's trails come back.");
+        changed |= ImGui::SliderInt("Detail clamp", &e.detail_clamp, 0, 100, e.detail_clamp ? "%d%%" : "off", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SetItemTooltip("Keeps the fixed screens within the brightness the sim itself draws around each pixel.\n"
             "Hides texture detail too thin for the sim to show, e.g. a dashed line where a screen's picture meets its bezel.\n"
             "Try 100 if you see such lines. Lower it if small text looks duller than with the fix off.");
         changed |= ImGui::SliderInt("Edge fade", &e.edge_fade, 0, 250, e.edge_fade ? "%d" : "off", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SetItemTooltip("Fades screen edges into the sim's own picture, in hundredths of a render pixel (100 = 1 pixel).\n"
-            "Can calm jaggy or crawling screen edges. Higher values can flicker.");
+            "Can calm jaggy or crawling screen edges. Within that band the upscaler's trails come back a little; higher values can flicker.");
         changed |= ImGui::SliderInt("Angle softening", &e.angle_softening, 0, 100, e.angle_softening ? "%d%%" : "off", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SetItemTooltip("Draws screens seen at a steep angle softer, like the sim does. Screens seen straight on are unchanged.");
         changed |= ImGui::SliderInt("Edge stretcher", &e.edge_stretch, 0, 400, e.edge_stretch ? "%d" : "off", ImGuiSliderFlags_AlwaysClamp);
@@ -133,6 +202,10 @@ void draw(reshade::api::effect_runtime*) {
         if (ImGui::Button("Reset to defaults")) { glass::set_jitter_positive(true); glass::set_glass_strength(100); }
         ImGui::TreePop();
     }
+    // About (GPL-3.0 section 7(b) notice, see NOTICE.md).
+    ImGui::Separator();
+    ImGui::TextColored(grey, "%s %s by %s - GPL-3.0 (see NOTICE.md) - github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix", GLASS_NAME, GLASS_VERSION_STRING, GLASS_AUTHOR);
+    ImGui::TextColored(grey, "Official downloads: GitHub releases only.");
 }
 }
 
