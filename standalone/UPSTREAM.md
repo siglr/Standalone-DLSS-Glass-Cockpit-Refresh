@@ -1,13 +1,15 @@
-# Glass v1.0.0 integration
+# Glass v1.0.1 integration
 
-Source: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases/tag/v1.0.0
-Commit: 9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa.
+Source: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases/tag/v1.0.1
+Commit: fabb8cef17595e8c521595023cfe85ecef33e8c0.
 
 Modified/unofficial Standalone Glass Graphics, based on Glass Cockpit DLSS Fix by IFreemz (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix).
 
 Imported the v1.0.0 shaders, per-mesh brightness variants, 32-entry descriptor ring, repeated desktop upscale recovery, VR exhausted-view recovery, stable edges, full-size sampling, glass filtering, optional temporal and Gaussian smoothing, depth occlusion, texture replacement resets, wrapped UV/iFly draw handling and NGX hook reattachment.
 
 Author defaults are retained: smoothing 35, strength 100, normal jitter; seam fix/stable edges/full-size sampling/occlusion ON; other experimental options OFF or zero. Existing INI files are preserved; new keys fall back to these defaults. The window exposes the settings and resets without a ReShade UI. Temporal and soft smoothing are mutually exclusive.
+
+The v1.0.0-to-v1.0.1 changes in `src/glass_cockpit_dlss_fix.cpp` and `src/overlay.hlsl` were applied verbatim: late-loaded unrelated modules are never opened for version/company metadata, low-variance colour gains are bounded, and seam detection distinguishes continuous anisotropic texture mapping from a true UV jump. No author defaults or license terms changed. Our presentation trampolines remain intact.
 
 ## Local adaptations
 

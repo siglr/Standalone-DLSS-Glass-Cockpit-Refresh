@@ -14,7 +14,11 @@ internal static class AppUpdateRunner
                 StandaloneAppUpdate.ParseRelease(File.ReadAllBytes(args[2]));
             } else if(mode=="version") {
                 if(!(StandaloneAppUpdate.ParseVersion("0.1.10")>StandaloneAppUpdate.ParseVersion("0.1.9")))throw new Exception("Version ordering");
-                foreach(string s in new[]{"1.2","01.2.3","1.2.3.4","v1.2.3","1.2.3\n","-1.2.3"}) {
+                if(StandaloneAppUpdate.ParseVersion("1.0.2")!=StandaloneAppUpdate.ParseVersion("1.0.2.0"))throw new Exception("Legacy version normalization");
+                if(!(StandaloneAppUpdate.ParseVersion("1.0.2.1")>StandaloneAppUpdate.ParseVersion("1.0.2")))throw new Exception("Revision ordering");
+                if(!(StandaloneAppUpdate.ParseVersion("1.0.2.10")>StandaloneAppUpdate.ParseVersion("1.0.2.9")))throw new Exception("Numeric revision ordering");
+                if(!(StandaloneAppUpdate.ParseVersion("1.0.3.1")>StandaloneAppUpdate.ParseVersion("1.0.2.99")))throw new Exception("Upstream ordering");
+                foreach(string s in new[]{"1.2","01.2.3","1.2.3.4.5","1.2.3.01","1.2.3.-1","1.2.3.65535","65535.2.3","v1.2.3","1.2.3\n","-1.2.3"}) {
                     bool rejected=false;try{StandaloneAppUpdate.ParseVersion(s);}catch{rejected=true;}
                     if(!rejected)throw new Exception("Accepted version "+s);
                 }

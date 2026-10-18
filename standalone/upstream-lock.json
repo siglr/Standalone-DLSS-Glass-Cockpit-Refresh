@@ -1,10 +1,10 @@
 {
   "product": "Standalone-DLSS-Glass-Cockpit-Refresh",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "glass": {
     "repository": "https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix",
-    "release": "v1.0.0",
-    "commit": "9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa",
+    "release": "v1.0.1",
+    "commit": "fabb8cef17595e8c521595023cfe85ecef33e8c0",
     "license": "GPL-3.0-only with upstream NOTICE.md section 7 terms"
   },
   "reshade": {
@@ -24,6 +24,7 @@
     "Native Present/Present1 frame boundaries without effects runtime; monotonic map/history expiry retained",
     "Presentation trampolines are tied to function implementations, surviving copied swapchain vtables",
     "v1.0.0 shaders and experimental settings; no capture/pixel-probe/report subsystem or hotkeys",
-    "GPL combined graphics engine; separate PolyForm Noncommercial installer/settings/updater"
+    "GPL combined graphics engine; separate PolyForm Noncommercial installer/settings/updater",
+    "v1.0.1 protected-module compatibility and colour/seam hotfixes imported unchanged"
   ]
 }

@@ -3,8 +3,8 @@ using System.Reflection;
 [assembly: AssemblyDescription("MSFS 2024 glass cockpit refresh controls, installer and authenticated app updater")]
 [assembly: AssemblyProduct("Standalone-DLSS-Glass-Cockpit-Refresh")]
 [assembly: AssemblyCompany("siglr / WeSimGlide")]
-[assembly: AssemblyVersion("@PROJECT_VERSION@.0")]
-[assembly: AssemblyFileVersion("@PROJECT_VERSION@.0")]
+[assembly: AssemblyVersion("@GLASS_FILE_VERSION@")]
+[assembly: AssemblyFileVersion("@GLASS_FILE_VERSION@")]
 [assembly: AssemblyInformationalVersion("@PROJECT_VERSION@")]
 internal static class ProductVersion
 {

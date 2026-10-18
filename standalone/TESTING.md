@@ -1,6 +1,6 @@
 # Tester quick start
 
-This experimental package integrates a modified/unofficial build based on Glass Cockpit DLSS Fix by IFreemz v1.0.0 with the ReShade components it requires. It contains no frame-generation engine. No separate ReShade install is needed.
+This experimental package integrates a modified/unofficial build based on Glass Cockpit DLSS Fix by IFreemz v1.0.1 with the ReShade components it requires. It contains no frame-generation engine. No separate ReShade install is needed.
 
 1. Extract the entire ZIP into a writable folder. Keep all its files/subfolders together.
 2. Close MSFS. For v0.1.3 or earlier, extract the complete new ZIP over your mod folder once with the control window closed. From v0.1.4 onward, the app checks for updates at launch and reopens itself after updating. If it says Mod update available, close MSFS and click Update; no uninstall is needed. Remove a different glass-cockpit add-on before a fresh installation to avoid duplicates.
@@ -38,3 +38,8 @@ For manual acceptance, confirm normal launch/auto-detection, install/update/unin
 
 
 For v1.0.0, first compare the same flight with existing glass settings. Check both eyes while looking around, display brightness when switching panels on, and objects passing in front of screens. Optional temporal anti-aliasing uses extra VRAM and remains off by default. Keep OFXR settings fixed for this comparison. Existing users should update the external app, close MSFS and click Update once; no uninstall/reinstall is needed. The graphics engine is GPL-3.0-only with upstream NOTICE terms, and the separate app remains noncommercial; see ENGINE-LICENSE.md. Distribute the matching source archive with the binary or provide it alongside the download.
+
+
+## v1.0.2 aircraft checks
+
+Check startup first, then FSLabs A321neo loading if available, red radio digits (e.g. A2A Comanche), and BendixKing radio shimmer (e.g. Cessna 152). Keep existing glass and OFXR settings fixed. The offline suite tests synthetic shader cases and startup-hook compatibility; it cannot reproduce third-party aircraft protection or every MSFS installation.

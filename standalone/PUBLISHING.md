@@ -18,3 +18,13 @@ Cache policy: merge `standalone/site/cache-headers.conf` into the shared `/other
 
 
 For v1.0.0 and later, publish the version-specific `*-source.zip` and its SHA-256 sidecar alongside the binary ZIP. This exact source snapshot includes engine changes, shaders, dependencies and build scripts; its SOURCE-SNAPSHOT.json identifies the base commit and hashes every source file. Do not distribute the GPL graphics DLL without also supplying its corresponding source by a GPL-compliant method. The engine's license is documented in ENGINE-LICENSE.md; the separate C# application retains PolyForm Noncommercial. Preserve vendor/glass/LICENSE and vendor/glass/NOTICE.md in binary and source distributions.
+
+
+## Release numbering
+
+Standalone 1.0.2 is a transition release based on upstream 1.0.1. Previously installed updaters accept exactly three components; 1.0.2 accepts three or four. Starting with the next upstream release, use `upstream-major.upstream-minor.upstream-patch.package-revision`, beginning with revision 1 (for example 1.0.2.1), and increment the last component for standalone-only changes. Numeric ordering must remain increasing; do not publish 1.0.1.1 after 1.0.2.
+
+Before switching the live channel to four components, retain a separately named signed 1.0.2 ZIP/feed and provide a legacy-client transition route. An older client that skips 1.0.2 still rejects four-part metadata. Do not overwrite the shared feed with a four-part version until that migration is implemented and tested, or explicitly document a manual update for those legacy clients. Build metadata normalizes three-part versions to a fourth component of zero; four-part versions retain their revision.
+
+
+Before publishing a graphics update, run `python -B tests/package_startup_tests.py build/standalone/server-upload/Standalone-DLSS-Glass-Cockpit-Refresh.zip` against the signed package. This extracts only its graphics DLLs into disposable build fixtures and checks native/bootstrap startup with both normal and copied swapchain tables. Also use `tests/official_package_tests.py OLD_ZIP NEW_FEED NEW_ZIP [OLD_AppUpdate.cs]`; the optional historical updater source verifies compatibility with the updater already in users' hands.

@@ -48,8 +48,10 @@ internal static class StandaloneAppUpdate
     internal static string HashFile(string path) { using(var f=File.OpenRead(path))using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(f)).Replace("-","").ToLowerInvariant(); }
     static bool IsHash(string s) { return s!=null&&Regex.IsMatch(s,"\\A[0-9a-f]{64}\\z"); }
     internal static Version ParseVersion(string s) {
-        Require(s!=null&&Regex.IsMatch(s,"\\A(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})\\z"),"Invalid release version.");
-        var v=new Version(s);return new Version(v.Major,v.Minor,v.Build,0);
+        Require(s!=null&&Regex.IsMatch(s,"\\A(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})\\.(0|[1-9][0-9]{0,4})(\\.(0|[1-9][0-9]{0,4}))?\\z"),"Invalid release version.");
+        var v=new Version(s);
+        Require(v.Major<=65534&&v.Minor<=65534&&v.Build<=65534&&v.Revision<=65534,"Release version exceeds executable version limits.");
+        return new Version(v.Major,v.Minor,v.Build,Math.Max(v.Revision,0));
     }
     internal static Release ParseRelease(byte[] bytes) {
         Require(bytes.Length<=65536,"Version file is too large.");

@@ -1,8 +1,14 @@
 > Source builds are labeled **source build** and have official automatic app updates disabled. Use `python -B scripts/dev_package.py` to build an installable local package with your own key. The automatic-update instructions below describe official WeSimGlide binary releases.
 
-# Standalone-DLSS-Glass-Cockpit-Refresh v1.0.1
+# Standalone-DLSS-Glass-Cockpit-Refresh v1.0.2
 
-Based on Glass Cockpit DLSS Fix by IFreemz v1.0.0 (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix), with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+Based on Glass Cockpit DLSS Fix by IFreemz v1.0.1 (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix), with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+
+## v1.0.2 / upstream v1.0.1 hotfixes
+
+Includes the author's FSLabs protected-module compatibility fix, red-radio colour correction and stretched-radio shimmer fix. The standalone startup fix and all author defaults remain intact. Settings, OFXR and original uninstall backups are preserved. Update the app, close MSFS and click **Update**; no uninstall is needed.
+
+This is the last planned three-part transition release. Future releases use the upstream version followed by a package revision (for example, upstream 1.0.2 plus package revision 1 becomes 1.0.2.1).
 
 ## v1.0.1 compatibility fix
 
@@ -41,7 +47,7 @@ This is an app-only detection update: existing simulator DLLs and your settings 
 
 ## Sharing with testers
 
-Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip** together with its matching **1.0.1-source.zip**, or provide access to that exact corresponding source alongside the binary download. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
+Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip** together with its matching **1.0.2-source.zip**, or provide access to that exact corresponding source alongside the binary download. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
 
 ## Files and recovery
 
@@ -63,7 +69,7 @@ This is an experimental build. Offline graphics/installer validation does not es
 
 ## Upstream and licenses
 
-Glass Cockpit DLSS Fix by IFreemz: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix, v1.0.0, 9040e14ab26f6d8f48f53c05c7f4fb0ec7e805fa. GPL-3.0-only with the section 7 terms in licenses/glass/NOTICE.md. The full GPL is licenses/glass/LICENSE. This package contains the modified/unofficial Standalone Glass Graphics build.
+Glass Cockpit DLSS Fix by IFreemz: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix, v1.0.1, fabb8cef17595e8c521595023cfe85ecef33e8c0. GPL-3.0-only with the section 7 terms in licenses/glass/NOTICE.md. The full GPL is licenses/glass/LICENSE. This package contains the modified/unofficial Standalone Glass Graphics build.
 ReShade: crosire, BSD-3-Clause (selected files BSD/MIT), D3D12 subset based on 6a7eaf8dbf5ed7050de1afd381ff058dfb51935e.
 Original source pins, licenses and local adaptations are retained. This package does not contain OFXR code or binaries. Source: https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh. See the root README and NOTICE.md for source licensing; upstream licenses remain separate.
 

@@ -212,7 +212,7 @@
         const response = await fetch('Standalone-DLSS-Glass-Cockpit-Refresh.version.json', {cache:'no-store', signal:controller.signal});
         if (!response.ok) throw new Error('Release information unavailable');
         const release = await response.json();
-        if (release.schema !== 1 || release.product !== 'Standalone-DLSS-Glass-Cockpit-Refresh' || !/^\d+\.\d+\.\d+$/.test(release.version) || !/^[0-9a-f]{64}$/i.test(release.sha256) || !Number.isSafeInteger(release.size) || release.size <= 0 || release.size > 67108864) throw new Error('Invalid release information');
+        if (release.schema !== 1 || release.product !== 'Standalone-DLSS-Glass-Cockpit-Refresh' || !/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(release.version) || !/^[0-9a-f]{64}$/i.test(release.sha256) || !Number.isSafeInteger(release.size) || release.size <= 0 || release.size > 67108864) throw new Error('Invalid release information');
         if (release.source === release.product + '-' + release.version + '-source.zip') {
           const source = document.getElementById('source-download'); source.href = release.source; source.hidden = false;
         }

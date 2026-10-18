@@ -218,3 +218,16 @@ set_tests_properties(cockpit_vr_exhausted_views PROPERTIES RUN_SERIAL TRUE TIMEO
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME cockpit_v1_motion COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/upstream_v1_tests.py")
 set_tests_properties(cockpit_v1_motion PROPERTIES RUN_SERIAL TRUE TIMEOUT 240)
+
+add_executable(shader_hotfix_probe tests/shader_hotfix_probe.cpp)
+target_link_libraries(shader_hotfix_probe PRIVATE d3d12 dxgi)
+add_test(NAME cockpit_v101_hotfix COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/upstream_hotfix_tests.py")
+set_tests_properties(cockpit_v101_hotfix PROPERTIES RUN_SERIAL TRUE TIMEOUT 30)
+
+add_custom_command(OUTPUT "${GEN}/module_scan.inc"
+ COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/extract_module_scan.py" "${G}/src/glass_cockpit_dlss_fix.cpp" "${GEN}/module_scan.inc"
+ DEPENDS tests/extract_module_scan.py "${G}/src/glass_cockpit_dlss_fix.cpp" VERBATIM)
+add_executable(module_scan_probe tests/module_scan_probe.cpp "${GEN}/module_scan.inc")
+target_include_directories(module_scan_probe PRIVATE "${GEN}")
+add_test(NAME protected_aircraft_module_scan COMMAND module_scan_probe)
+set_tests_properties(protected_aircraft_module_scan PROPERTIES TIMEOUT 10)

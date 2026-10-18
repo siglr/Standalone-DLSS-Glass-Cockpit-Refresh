@@ -9,7 +9,10 @@ import zipfile
 from fixture_cleanup import cleanup_fixture
 from signed_fixture import ROOT, compile_cs
 
-old_zip, feed, new_zip = (Path(s).resolve() for s in sys.argv[1:])
+old_zip, feed, new_zip = (Path(s).resolve() for s in sys.argv[1:4])
+# Optional historical source proves the already-installed updater accepts the
+# transition release, rather than testing only the newly compiled updater.
+old_updater = Path(sys.argv[4]).resolve() if len(sys.argv) == 5 else ROOT/'standalone/AppUpdate.cs'
 work = Path(tempfile.mkdtemp(prefix='standalone-tests-release-', dir=ROOT/'build')).resolve()
 try:
     app = work/'app'
@@ -18,7 +21,7 @@ try:
     runner = work/'update.exe'
     common = [ROOT/'standalone/AppUpdate.cs', ROOT/'standalone/ReleaseTrust.cs',
               ROOT/'standalone/ReleasePublicKey.cs', ROOT/'build/standalone/control/ProductVersion.cs']
-    compile_cs(runner, ROOT/'tests/app_update_runner.cs', *common)
+    compile_cs(runner, ROOT/'tests/app_update_runner.cs', old_updater, *common[1:])
     install = work/'install.exe'
     compile_cs(install, ROOT/'tests/native_installer_runner.cs', ROOT/'standalone/NativeInstaller.cs',
                ROOT/'standalone/SimulatorDiscovery.cs', *common)

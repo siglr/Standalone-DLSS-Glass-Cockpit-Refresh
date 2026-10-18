@@ -8,7 +8,11 @@ WORK=Path(tempfile.mkdtemp(prefix='app-update-tests-',dir=ROOT/'build'))
 PRODUCT='Standalone-DLSS-Glass-Cockpit-Refresh'
 EXE=PRODUCT+'.exe'
 CURRENT=(ROOT/'standalone/VERSION').read_text().strip()
-parts=[int(p) for p in CURRENT.split('.')];parts[-1]+=1
+# Exercise the transition into four-part versions, and subsequent revisions,
+# through real signed staging, rollback and helper handoff.
+parts=[int(p) for p in CURRENT.split('.')]
+if len(parts)==3:parts.append(1)
+else:parts[-1]+=1
 NEXT='.'.join(map(str,parts))
 from signed_fixture import Signing,compile_cs
 signing=Signing(WORK)
@@ -18,7 +22,7 @@ compile_cs(RUNNER,ROOT/'tests/app_update_runner.cs',ROOT/'standalone/AppUpdate.c
 TEST_WINDOW=WORK/'current.exe'
 compile_cs(TEST_WINDOW,ROOT/'standalone/GlassWindow.cs',ROOT/'standalone/WsgTheme.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'tools/GlassSettingsPanel.cs',ROOT/'build/standalone/control/ProductVersion.cs',win=True)
 fake=WORK/'future.cs'
-fake.write_text('using System;using System.IO;using System.Reflection;\n[assembly:AssemblyVersion("'+NEXT+'.0")]\n[assembly:AssemblyFileVersion("'+NEXT+'.0")]\nclass Future { static void Main() { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"reopened.txt"),"'+NEXT+'"); } }')
+fake.write_text('using System;using System.IO;using System.Reflection;\n[assembly:AssemblyVersion("'+NEXT+'")]\n[assembly:AssemblyFileVersion("'+NEXT+'")]\nclass Future { static void Main() { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"reopened.txt"),"'+NEXT+'"); } }')
 compile_cs(WORK/'future.exe',fake,win=True)
 def digest(b):return hashlib.sha256(b).hexdigest()
 def encoded(o):return (json.dumps(o,indent=2)+'\n').encode()

@@ -4,7 +4,9 @@ Glass Cockpit DLSS Fix for **Microsoft Flight Simulator 2024**, with the require
 
 **Separate licenses:** the installer/settings/updater app is source-available under [PolyForm Noncommercial 1.0.0](LICENSE.md). The combined graphics engine is **GPL-3.0-only**, including this project's engine changes, with the upstream NOTICE terms. See [engine licensing and corresponding source](ENGINE-LICENSE.md) and [attribution](NOTICE.md).
 
-Version **1.0.1** integrates **Glass Cockpit DLSS Fix by IFreemz v1.0.0** as a modified, unofficial **Standalone Glass Graphics** build. It fixes a standalone v1.0.0 startup crash when another graphics component copies a swapchain's method table. The upstream rendering corrections, per-mesh brightness, depth-based occlusion, experimental controls and author's defaults are retained. The separate official OFXR Bridge and its settings are untouched.
+Version **1.0.2** integrates **Glass Cockpit DLSS Fix by IFreemz v1.0.1** as a modified, unofficial **Standalone Glass Graphics** build. It fixes a standalone v1.0.0 startup crash when another graphics component copies a swapchain's method table. The upstream rendering corrections, per-mesh brightness, depth-based occlusion, experimental controls and author's defaults are retained. The separate official OFXR Bridge and its settings are untouched.
+
+The upstream hotfix avoids opening protected late-loaded aircraft DLLs (FSLabs), prevents red radio digits turning yellow, and corrects false seam detection on stretched radio textures. This release also prepares the updater for four-part version numbers; see [release numbering](standalone/PUBLISHING.md#release-numbering).
 
 ## Use the mod
 
@@ -50,7 +52,7 @@ This repository is the authoritative source for standalone development and relea
 
 - `standalone/`: C# window, native setup/discovery, authenticated updater, defaults and package tooling.
 - `src/`, `include/`: DXGI bootstrap and minimal rendering host. Internal UVR names are retained to minimize changes to the tested rendering ABI.
-- `vendor/glass/`: glass fix v1.0.0 and offline rendering fixtures, with standalone adaptations.
+- `vendor/glass/`: glass fix v1.0.1 and offline rendering fixtures, with standalone adaptations.
 - `vendor/reshade/`: selected D3D12/DXGI sources and required headers/dependencies, not the full ReShade application.
 - `tests/`: installation, discovery, update and graphics checks.
 - `tools/`, `scripts/`: shared settings controls, maintainer signing tool and build/development-package helpers.
