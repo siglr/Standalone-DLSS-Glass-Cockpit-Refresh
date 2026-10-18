@@ -1,8 +1,12 @@
 > Source builds are labeled **source build** and have official automatic app updates disabled. Use `python -B scripts/dev_package.py` to build an installable local package with your own key. The automatic-update instructions below describe official WeSimGlide binary releases.
 
-# Standalone-DLSS-Glass-Cockpit-Refresh v1.0.0
+# Standalone-DLSS-Glass-Cockpit-Refresh v1.0.1
 
 Based on Glass Cockpit DLSS Fix by IFreemz v1.0.0 (https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix), with the required ReShade D3D12 components built in. MSFS 2024 desktop and VR. No separate ReShade install, menu or hotkeys. Frame generation is not included; official OFXR Bridge can be installed and run separately.
+
+## v1.0.1 compatibility fix
+
+Fixes a reproduced startup crash introduced in the standalone v1.0.0 presentation hook when another graphics component copies a swapchain's method table. The fix keeps the original presentation function associated with its implementation, so a copied table does not lose it. This addresses the reproduced regression; confirmation on affected MSFS systems is still needed. No glass defaults, saved settings or OFXR settings change. Update the app, close MSFS, then click **Update**; no uninstall is needed.
 
 ## v1.0.0 graphics update
 
@@ -37,7 +41,7 @@ This is an app-only detection update: existing simulator DLLs and your settings 
 
 ## Sharing with testers
 
-Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip** together with its matching **1.0.0-source.zip**, or provide access to that exact corresponding source alongside the binary download. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
+Send the complete **Standalone-DLSS-Glass-Cockpit-Refresh.zip** together with its matching **1.0.1-source.zip**, or provide access to that exact corresponding source alongside the binary download. Extract it into a writable folder and keep the contents together. Do not send just the EXE, copy DLLs manually, or include your own settings backups/logs. Official OFXR is a separate optional download for frame generation. See TESTING.md for the comparison and useful feedback.
 
 ## Files and recovery
 

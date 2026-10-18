@@ -12,6 +12,7 @@ Author defaults are retained: smoothing 35, strength 100, normal jitter; seam fi
 ## Local adaptations
 
 - Minimal ReShade D3D12/DXGI host remains built in. No OFXR engine, OpenXR registration, OFXR settings access or keyboard shortcuts.
+- Standalone v1.0.1 attaches Present/Present1 through per-implementation function trampolines instead of changing swapchain vtables. A private copy of the table made by another graphics component no longer breaks the original-function lookup. The detours preserve the original result, test-present exclusion and nested-frame guard. Unsupported additional implementations are left untouched.
 - Settings polling and maintenance run from both upscaler calls and native presents, so late-loaded or displaced NGX hooks can be found again. Native Present/Present1 provides actual frame boundaries for v1.0.0 VR view tracking. Test presents do not count; nested Present calls count once. Native swapchains are retained.
 - Guarded enable epochs retained. Temporal history is invalidated across enable epochs and after a 135 ms gap. Largest-output selection expires after two seconds; desktop map reuse expires after 135 ms. VR recovery uses the author's eight-present window, so both eyes share the same frame lifetime even during slow frames.
 - Preserve native upscaled pixels until current glass residuals exist, avoiding the first accepted frame's flat-glare flash.

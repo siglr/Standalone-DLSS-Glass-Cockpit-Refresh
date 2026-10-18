@@ -4,7 +4,7 @@ Glass Cockpit DLSS Fix for **Microsoft Flight Simulator 2024**, with the require
 
 **Separate licenses:** the installer/settings/updater app is source-available under [PolyForm Noncommercial 1.0.0](LICENSE.md). The combined graphics engine is **GPL-3.0-only**, including this project's engine changes, with the upstream NOTICE terms. See [engine licensing and corresponding source](ENGINE-LICENSE.md) and [attribution](NOTICE.md).
 
-Version **1.0.0** integrates **Glass Cockpit DLSS Fix by IFreemz v1.0.0** as a modified, unofficial **Standalone Glass Graphics** build. It adds upstream rendering corrections, per-mesh brightness, depth-based occlusion and new experimental controls, retaining the author's defaults. The separate official OFXR Bridge and its settings are untouched.
+Version **1.0.1** integrates **Glass Cockpit DLSS Fix by IFreemz v1.0.0** as a modified, unofficial **Standalone Glass Graphics** build. It fixes a standalone v1.0.0 startup crash when another graphics component copies a swapchain's method table. The upstream rendering corrections, per-mesh brightness, depth-based occlusion, experimental controls and author's defaults are retained. The separate official OFXR Bridge and its settings are untouched.
 
 ## Use the mod
 

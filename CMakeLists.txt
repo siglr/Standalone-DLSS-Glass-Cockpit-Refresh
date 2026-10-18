@@ -206,6 +206,10 @@ foreach(mode IN ITEMS native wrapped-native-adapter wrapped-adapter bootstrap)
 endforeach()
 
 # v1.0.0 repeated desktop upscaler calls must retain the corrected screen.
+add_test(NAME graphics_probe_cloned_swapchain COMMAND graphics_probe_native wrapped-adapter "$<TARGET_FILE:UnifiedVRGraphics>" --cloned-swapchain)
+add_test(NAME graphics_probe_bootstrap_cloned_swapchain COMMAND graphics_probe_bootstrap bootstrap "$<TARGET_FILE_DIR:graphics_probe_bootstrap>/$<TARGET_FILE_NAME:UnifiedVRGraphics>" --cloned-swapchain)
+set_tests_properties(graphics_probe_cloned_swapchain graphics_probe_bootstrap_cloned_swapchain PROPERTIES RUN_SERIAL TRUE TIMEOUT 30)
+
 add_test(NAME cockpit_desktop_fg_repeat COMMAND cockpit_fixture --fg-repeat)
 set_tests_properties(cockpit_desktop_fg_repeat PROPERTIES RUN_SERIAL TRUE TIMEOUT 120)
 

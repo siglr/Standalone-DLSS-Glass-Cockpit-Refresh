@@ -12,6 +12,8 @@
 #include <shared_mutex>
 #include <atomic>
 #include <algorithm>
+#include <array>
+#include <utility>
 HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 thread_local bool g_in_dxgi_runtime = false;
@@ -153,25 +155,52 @@ struct PresentScope {
  }
  ~PresentScope() { --present_depth; }
 };
+// Keep the trampoline associated with the intercepted implementation, not the
+// object's current vtable address. Overlays can copy that table after creation.
+// A vtable-address lookup then loses the trampoline and calls nullptr (v1.0.0).
+template<size_t Slot>
 HRESULT STDMETHODCALLTYPE GlassPresent(IDXGISwapChain* chain, UINT interval, UINT flags) {
- const auto original = reshade::hooks::call(GlassPresent, reshade::hooks::vtable_from_instance(chain) + 8);
+ const auto original = reshade::hooks::call(GlassPresent<Slot>);
  PresentScope scope(chain, flags);
  return original(chain, interval, flags);
 }
+template<size_t Slot>
 HRESULT STDMETHODCALLTYPE GlassPresent1(IDXGISwapChain1* chain, UINT interval, UINT flags, const DXGI_PRESENT_PARAMETERS* parameters) {
- const auto original = reshade::hooks::call(GlassPresent1, reshade::hooks::vtable_from_instance(chain) + 22);
+ const auto original = reshade::hooks::call(GlassPresent1<Slot>);
  PresentScope scope(chain, flags);
  return original(chain, interval, flags, parameters);
+}
+// Different native/proxy swapchain implementations need different trampolines.
+// Bound the set; if unsupported or full, leave that implementation untouched.
+constexpr size_t max_present_implementations = 16;
+template<size_t... I> auto present_callbacks(std::index_sequence<I...>) {
+ return std::array{&GlassPresent<I>...};
+}
+template<size_t... I> auto present1_callbacks(std::index_sequence<I...>) {
+ return std::array{&GlassPresent1<I>...};
+}
+template<class Callbacks>
+void observe_present(const char* name, void* target, std::array<void*, max_present_implementations>& targets, const Callbacks& callbacks) {
+ if (std::find(targets.begin(), targets.end(), target) != targets.end()) return;
+ const auto empty = std::find(targets.begin(), targets.end(), nullptr);
+ if (empty == targets.end()) return;
+ const size_t slot = static_cast<size_t>(empty - targets.begin());
+ // The hook manager publishes the trampoline before enabling the detour.
+ if (reshade::hooks::install(name, target, reinterpret_cast<void*>(callbacks[slot])))
+  *empty = target;
 }
 }
 void UvrObserveSwapchain(IDXGISwapChain* chain) {
  if (!chain) return;
  static std::mutex mutex;
  std::lock_guard lock(mutex);
- reshade::hooks::install("Glass frame boundary: Present", reshade::hooks::vtable_from_instance(chain), 8, reinterpret_cast<void*>(&GlassPresent));
+ static std::array<void*, max_present_implementations> targets{}, targets1{};
+ static const auto callbacks = present_callbacks(std::make_index_sequence<max_present_implementations>{});
+ static const auto callbacks1 = present1_callbacks(std::make_index_sequence<max_present_implementations>{});
+ observe_present("Glass frame boundary: Present", reshade::hooks::vtable_from_instance(chain)[8], targets, callbacks);
  IDXGISwapChain1* newer = nullptr;
  if (SUCCEEDED(chain->QueryInterface(IID_PPV_ARGS(&newer)))) {
-  reshade::hooks::install("Glass frame boundary: Present1", reshade::hooks::vtable_from_instance(newer), 22, reinterpret_cast<void*>(&GlassPresent1));
+  observe_present("Glass frame boundary: Present1", reshade::hooks::vtable_from_instance(newer)[22], targets1, callbacks1);
   newer->Release();
  }
 }

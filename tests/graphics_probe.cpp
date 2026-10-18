@@ -10,6 +10,27 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <array>
+#include <algorithm>
+
+// Model a graphics overlay giving an existing COM object a private method table.
+// Restore before releasing the swapchain, including on a failed assertion.
+struct SwapchainTableCopy {
+    void*** object = nullptr;
+    void** original = nullptr;
+    std::array<void*, 41> copy{}; // IDXGISwapChain4
+    void install(IDXGISwapChain1* chain) {
+        Microsoft::WRL::ComPtr<IDXGISwapChain4> newest;
+        if (FAILED(chain->QueryInterface(IID_PPV_ARGS(&newest))) || newest.Get() != chain)
+            throw std::runtime_error("clone-table fixture requires shared IDXGISwapChain4 identity");
+        object = reinterpret_cast<void***>(chain);
+        original = *object;
+        std::copy_n(original, copy.size(), copy.begin());
+        *object = copy.data();
+    }
+    void restore() { if (object) { *object = original; object = nullptr; } }
+    ~SwapchainTableCopy() { restore(); }
+};
 
 using Microsoft::WRL::ComPtr;
 static void check(HRESULT hr, const char* operation) {
@@ -38,6 +59,7 @@ int main(int argc, char** argv) {
         if (mode != "native" && mode != "wrapped-native-adapter" && mode != "wrapped-adapter" && mode != "bootstrap")
             throw std::runtime_error("unknown probe mode");
         const bool debug_enabled = !(argc > 3 && std::string(argv[3]) == "--no-debug");
+        const bool clone_table = argc > 3 && std::string(argv[3]) == "--cloned-swapchain";
         std::printf("mode=%s debug=%d\n", mode.c_str(), debug_enabled);
         ComPtr<ID3D12Debug> debug;
         if (debug_enabled) {
@@ -129,6 +151,11 @@ int main(int argc, char** argv) {
             sd.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT; sd.BufferCount=2; sd.SwapEffect=DXGI_SWAP_EFFECT_FLIP_DISCARD;
             ComPtr<IDXGISwapChain1> swapchain;
             check(factory->CreateSwapChainForHwnd(command_queue.Get(), window, &sd, nullptr, nullptr, &swapchain), "native swapchain");
+            SwapchainTableCopy copied_table;
+            if (clone_table) {
+                copied_table.install(swapchain.Get());
+                std::puts("overlay-style private swapchain table installed");
+            }
             auto before = count();
             const auto set_enabled = reinterpret_cast<void(*)(bool)>(GetProcAddress(backend, "UvrSetCockpitEnabled"));
             const auto is_enabled = reinterpret_cast<bool(*)()>(GetProcAddress(backend, "UvrCockpitEnabled"));
@@ -154,6 +181,7 @@ int main(int argc, char** argv) {
             const DWORD wait = WaitForSingleObject(done, 10000); CloseHandle(done);
             if (wait != WAIT_OBJECT_0) throw std::runtime_error("present GPU wait timed out");
             fence.Reset();
+            copied_table.restore();
             swapchain.Reset(); command_queue.Reset(); DestroyWindow(window);
         }
         std::puts("PROBE PASSED");
