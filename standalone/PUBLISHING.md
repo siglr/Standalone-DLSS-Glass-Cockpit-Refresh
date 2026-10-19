@@ -1,34 +1,41 @@
 # Packaging and signing
 
-## Current official-DLL release: 1.0.2.10
+## Current official-DLL release: 1.0.2.14
 
-Build from this checkout using `python -B scripts/official_release_package.py --enable-official-updates --shared-site "C:\WSG MSFS 2024 FG Switcher\dist\website"`, with `GLASS_SIGNING_KEY` explicitly set to the existing protected production key. Never generate a replacement key. The script compiles only the app; IFreemz's official DLL stays unchanged. Its ZIP and DLL hashes must match the official release notes. Development packages remain isolated and have official app updates disabled.
+Build from this checkout using `python -B scripts/official_release_package.py --enable-official-updates --shared-site "C:\WSG MSFS 2024 FG Switcher\dist\website"`, with `GLASS_SIGNING_KEY` explicitly set to the existing protected production key. Never generate a replacement key. The app is compiled with the pinned production public key and official updates enabled. Both IFreemz graphics files remain byte-unchanged and must match the release-note checksums. Development builds use their separate key and disable official app updates.
 
-The latest shared index is now `C:\WSG MSFS 2024 FG Switcher\dist\website\index.html`. It includes OpenXR FG Switcher and currently matches the live index byte for byte. Read it and the adjacent `.htaccess` as the current baseline; do not fall back to the older Stream Feeder copy or overwrite another project's files. The release script copies this index unchanged and appends only this tool's compatibility routing to a staged `.htaccess`.
+Website files are staged in `build/standalone/server-upload`; maintainer instructions, validation and listing copy are in `build/release-preparation`. The user ZIP includes one concise README.txt, required licenses/notices and both corresponding graphics source archives under Source code. Developer reports stay in the repository. The full app/source ZIP is a separate download.
 
-Output: `build/standalone/server-upload`. The regular ZIP/feed are v1.0.2.10. Public filenames never contain the version; version numbers stay in metadata and release tags. Current source uses `Standalone-DLSS-Glass-Cockpit-Refresh-source.zip`, and file hashes use `Standalone-DLSS-Glass-Cockpit-Refresh.hashes.json`. Historical releases remain on GitHub. Compatibility assets live under `compatibility/` and must remain available:
+Public filenames never contain a version: `Standalone-DLSS-Glass-Cockpit-Refresh.zip`, `.version.json`, `.hashes.json`, and `Standalone-DLSS-Glass-Cockpit-Refresh-source.zip`, with SHA-256 sidecars. Versions belong in signed metadata, the app and GitHub tags. No WSG release-history folder is needed.
 
-- `compatibility/*-legacy.zip` and `.version.json`: unchanged published v1.0.2 for apps that cannot parse four-part versions.
-- `compatibility/*-bridge.zip` and `.version.json`: app-only transition based on v1.0.2, retaining its exact graphics bytes and adding support for official-DLL payloads.
-- Corresponding 1.0.2 and 1.0.2.1 source ZIPs/checksums, plus the final source ZIP/checksum.
+### Older automatic updaters
 
-The server internally rewrites the fixed app URLs according to their product/version User-Agent. HTTP redirects are unsuitable because the updater rejects them. Apps older than 1.0.2 receive the original transition first, then the bridge, then 1.0.2.10. Apps at 1.0.2 need only the bridge and final release. Normal browser downloads receive the final release. No uninstall is required. Older apps may reopen more than once.
+The published v1.0.2.10 release supplies immutable compatibility files, pinned by `standalone/compatibility-lock.json`. Packaging reuses and verifies all ten assets; it never rebuilds or re-signs their packages, feeds or sources.
 
-Required release checks: `tests/standalone_tests.py`, `tests/app_update_tests.py`, `tests/official_engine_tests.py`, `tests/development_package_tests.py`, and `tests/release_migration_tests.py`. The latter exercises real signed archives with the historical updater sources and the production EXE, preserving user files and OFXR. Run graphics tests only with the real simulator closed. The documented optional Dark screen fix ON glare failure is an upstream limitation of the unmodified DLL, not a passing check. Default-OFF, external-settings, startup and core checks must pass.
+- Before v1.0.2: receive the original signed v1.0.2 legacy package.
+- v1.0.2 (including normalized 1.0.2.0): receive the original signed v1.0.2.1 bridge, retaining its original graphics bytes.
+- v1.0.2.1 and later, including v1.0.2.10: receive the current release directly.
 
-Keep only current downloads on WSG. Older releases and matching source remain on GitHub; the server does not need a release-history folder. Retain only the compatibility packages needed by older automatic updaters.
+The fixed app URLs use internal Apache rewrites selected by product/version User-Agent; redirects are rejected by older clients. Keep `compatibility/` available. Existing users open the app normally; it may reopen more than once, without uninstalling. A normal browser receives the current ZIP.
 
-### Publication order
+### Shared website and screenshots
 
-1. Publish corresponding source archives and checksums on GitHub and WSG, together with the versioned release notes. GitHub/Flightsim.to/HangarAddons receive the final ZIP, not either compatibility ZIP.
-2. Upload legacy and bridge ZIPs/feeds/checksums to WSG. Keep the old shared feed until the routing is installed.
-3. Merge/apply the staged `.htaccess`, preserving any newer live rules. Confirm fixed feed and ZIP URLs return HTTP 200 (not redirects) for User-Agents ending in `/0.1.9`, `/1.0.1`, `/1.0.2`, `/1.0.2.1` and `/1.0.2.10`. They must route to legacy, legacy, bridge, current and current respectively. Confirm `Cache-Control: no-store` and `Vary: User-Agent`.
-4. Upload the final ZIP, source/hash files, tool page and latest index. Publish the final signed version JSON **last**. Recheck the normal browser download and every updater route against its signed checksum.
-5. Publish the GitHub release and update Flightsim.to and HangarAddons with v1.0.2.10 and RELEASE-NOTES.md. Do not describe the installer as authored by IFreemz or the optional dark-screen test as passing.
+Start from the latest `C:\WSG MSFS 2024 FG Switcher\dist\website\index.html`, containing OpenXR FG Switcher, and check for newer live edits before deployment. Change only the Glass Cockpit Refresh card in the staged index. Update its description, screenshot dimensions and hash query; preserve other cards byte for byte. Stage only this tool's assets, never other tools' packages. The local source folder is read-only to this packager.
 
-Live routing/headers can only be confirmed after deployment. Preparing these files does not upload them. Old fixed-URL clients remain supported only while these compatibility assets/rules are retained.
+Merge `standalone/site/legacy-updates.conf` into the shared .htaccess while preserving cache/CORS and other-tool rules. The packager replaces an existing marked compatibility block or appends it once. Pages revalidate and downloads/feeds use no-store. Screenshot filenames stay unversioned; image URLs use content-hash query strings.
 
-After publishing, retain the exact legacy/bridge ZIPs, feeds and source. Never rebuild or replace them under the same version. The current packager is explicitly limited to 1.0.2.10; before preparing a later release, change it to reuse the immutable published compatibility assets.
+### Required checks and publication
+
+Run standalone discovery/installer, updater, official-engine, installation-mode, compatibility, dirty-buffer paint and development-package checks. Run `tests/release_migration_tests.py` against the production signed ZIP: real historical update chains, direct v1.0.2.10 upgrade, retained personal files/OFXR, exact production UI in both modes, immutable bridge checks, and staged route/filename checks. Run graphics fixtures sequentially only with the real simulator closed. The optional Dark screen fix ON glare failure is a disclosed upstream limitation; default-OFF, external-settings, startup and core checks must pass.
+
+Prepare RELEASE-DESCRIPTION.md, RELEASE-NOTES.md and the actual production screenshots for GitHub, WSG, Flightsim.to and HangarAddons. Preparation alone does not publish anything. Commit/push the exact source before creating release tag v1.0.2.14.
+
+1. Publish current corresponding source and checksum on GitHub/WSG.
+2. Retain or restore the exact pinned compatibility files and merge routing without dropping newer live rules.
+3. Upload current ZIP, hashes, tool page, screenshots and the narrowly updated shared index.
+4. Upload the signed main version JSON last.
+5. Verify HTTP 200 without redirects for browser and User-Agents /0.1.9, /1.0.1, /1.0.2, /1.0.2.1, /1.0.2.10 and /1.0.2.14; compare signed hashes and no-store/Vary headers. These checks require deployment.
+6. Publish the GitHub release and update the existing Flightsim.to/HangarAddons entries with the normal ZIP, full description, changelog and new screenshots.
 
 ## Historical custom-engine packaging
 
@@ -44,12 +51,10 @@ The website source lives in `standalone/site/Standalone-DLSS-Glass-Cockpit-Refre
 
 DPAPI CurrentUser keys depend on the Windows account/profile and machine protection. Copying the encrypted file alone is not portable recovery. Keep a protected, tested account/system backup before changing Windows or release machines. Do not silently generate a replacement for an established release key. Local release signatures are not Windows Authenticode certificates or antivirus clearance.
 
-The current shared tools index is `C:\WSG Stream Feeder\dist\upload\index.html`. Use that file as the starting point for any requested index changes. Do not use the historical redirect in the old mod repository or its upload folder. Standalone packaging leaves the shared index untouched.
-
-Cache policy: merge `standalone/site/cache-headers.conf` into the shared `/otherdata/tools/.htaccess`, preserving existing rules and CORS settings. This snippet is also staged with the upload files; uploading it as `.conf` alone does not activate it. The combined `.htaccess` is maintained in `C:\WSG Stream Feeder\web\.htaccess` and staged in that project's `dist\upload\.htaccess`. The HTML must revalidate before reuse; the fixed ZIP and version-feed URLs use `no-store`. Styles/scripts are inline, and the page already fetches release metadata with `cache: 'no-store'`. After uploading, check the actual HTTP response headers. Previously cached pages may need one final hard refresh before the new policy takes effect. No app rebuild or new release is needed.
 
 
-For v1.0.0 and later, publish the version-specific `*-source.zip` and its SHA-256 sidecar alongside the binary ZIP. This exact source snapshot includes engine changes, shaders, dependencies and build scripts; its SOURCE-SNAPSHOT.json identifies the base commit and hashes every source file. Do not distribute the GPL graphics DLL without also supplying its corresponding source by a GPL-compliant method. The engine's license is documented in ENGINE-LICENSE.md; the separate C# application retains PolyForm Noncommercial. Preserve vendor/glass/LICENSE and vendor/glass/NOTICE.md in binary and source distributions.
+
+Historical releases used version-specific source archive names. Current releases use the fixed `Standalone-DLSS-Glass-Cockpit-Refresh-source.zip` and its SHA-256 sidecar alongside the binary ZIP. This exact source snapshot includes engine changes, shaders, dependencies and build scripts; its SOURCE-SNAPSHOT.json identifies the base commit and hashes every source file. Do not distribute the GPL graphics DLL without also supplying its corresponding source by a GPL-compliant method. The engine's license is documented in ENGINE-LICENSE.md; the separate C# application retains PolyForm Noncommercial. Preserve vendor/glass/LICENSE and vendor/glass/NOTICE.md in binary and source distributions.
 
 
 ## Release numbering

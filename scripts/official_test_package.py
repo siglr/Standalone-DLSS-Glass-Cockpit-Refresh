@@ -15,7 +15,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / 'build/official-engine'
-VERSION = '1.0.2.10'
+VERSION = '1.0.2.14'
 LOCK = json.loads((ROOT/'standalone/official-engine-lock.json').read_text(encoding='utf-8'))
 COMMIT, REPOSITORY = LOCK['commit'], LOCK['repository']
 ZIP_HASH, DLL_HASH = LOCK['zipSha256'], LOCK['dllSha256']
@@ -44,6 +44,11 @@ def prepare():
         for name in ('dxgi.dll','LICENSE','NOTICE.md','README.txt'):
             (binary/name).write_bytes(archive.read(name))
     assert digest(binary/'dxgi.dll')==DLL_HASH
+    addon=binary/'glass-cockpit-dlss-fix.addon64'
+    fetch(f'https://github.com/{REPOSITORY}/releases/download/v1.0.1/{addon.name}',addon)
+    assert digest(addon)==LOCK['addon']['sha256'] and LOCK['addon']['sha256'] in app
+    # The add-on is built from the release tag, not the standalone's main commit.
+    fetch(f"https://api.github.com/repos/{REPOSITORY}/zipball/{LOCK['addon']['tagObject']}",WORK/'addon-source.zip')
     fetch(f"https://api.github.com/repos/{REPOSITORY}/releases/{LOCK['releaseId']}",WORK/'official-release.json',limit=1024*1024,refresh=True)
     fetch(f'https://api.github.com/repos/{REPOSITORY}/zipball/{COMMIT}',WORK/'source.zip')
     source=WORK/'upstream-source';source.mkdir(exist_ok=True)
@@ -68,6 +73,15 @@ def prepare():
                     dest=source/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
                     out.writestr(name,data)
         out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'commit':COMMIT,'release':'v1.0.1','dllSha256':DLL_HASH},indent=2))
+    with zipfile.ZipFile(WORK/'IFreemz-addon-v1.0.1-source.zip','w',zipfile.ZIP_DEFLATED) as out:
+        for prefix,path in [('',WORK/'addon-source.zip'),*dependencies[1:]]:
+            with zipfile.ZipFile(path) as archive:
+                for item in archive.infolist():
+                    if item.is_dir():continue
+                    name=prefix+item.filename.split('/',1)[1]
+                    if '..' in Path(name).parts or Path(name).is_absolute():raise RuntimeError('Unsafe add-on source name')
+                    out.writestr(name,archive.read(item))
+        out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'tagObject':LOCK['addon']['tagObject'],'commit':LOCK['addon']['commit'],'release':'v1.0.1','addonSha256':digest(addon),'sourceSubmodules':LOCK['sourceSubmodules']},indent=2))
     return binary,source_zip
 
 def main():
@@ -86,21 +100,31 @@ def main():
     compile_cs(verifier,ROOT/'tests/official_engine_runner.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,version_source)
     verified=subprocess.check_output([str(verifier),'archive',str(WORK/'official-release.json'),str(WORK/'official.zip')],text=True).strip()
     assert verified==DLL_HASH, 'Release-note checksums do not match the bundled official DLL'
+    addon_verified=subprocess.check_output([str(verifier),'archive',str(WORK/'official-release.json'),str(binary/'glass-cockpit-dlss-fix.addon64'),'addon'],text=True).strip()
+    assert addon_verified==digest(binary/'glass-cockpit-dlss-fix.addon64')
     items={
         'dxgi.dll':binary/'dxgi.dll',
+        'glass-cockpit-dlss-fix.addon64':binary/'glass-cockpit-dlss-fix.addon64',
+        'Source code/IFreemz-addon-v1.0.1-source.zip':WORK/'IFreemz-addon-v1.0.1-source.zip',
         'glass-cockpit-dlss-fix.ini':ROOT/'standalone/glass-cockpit-dlss-fix.ini',
         'licenses/IFreemz/LICENSE':binary/'LICENSE',
         'licenses/IFreemz/NOTICE.md':binary/'NOTICE.md',
         'licenses/IFreemz/README.txt':binary/'README.txt',
-        source_zip.name:source_zip,
+        'Source code/'+source_zip.name:source_zip,
+        'Source code/README.txt':ROOT/'standalone/SOURCE-CODE-README.txt',
         'LICENSE.md':ROOT/'LICENSE.md',
-        'README.md':ROOT/'standalone/OFFICIAL-DLL-TEST.md',
-        'COMPARISON.md':ROOT/'docs/OFFICIAL-DLL-COMPARISON.md',
-        'IFREEMZ-ENHANCEMENTS.md':ROOT/'docs/IFREEMZ-ENHANCEMENTS.md',
+        'README.txt':ROOT/'standalone/USER-README.txt',
         'official-engine-lock.json':ROOT/'standalone/official-engine-lock.json',
         'official-release.json':WORK/'official-release.json',
         **{name:ROOT/'standalone/LegacyInstallerNotice.ps1' for name in ('Install.ps1','InstallCore.ps1','Update.ps1','Resolve-MSFS.ps1')},
     }
+    # Remove only unchanged generated files retired from the previous package layout.
+    old_inventory=json.loads((out/'app-files.json').read_text()) if (out/'app-files.json').exists() else {}
+    for name in ('IFreemz-addon-v1.0.1-source.zip',source_zip.name,'README.md','COMPARISON.md','IFREEMZ-ENHANCEMENTS.md'):
+        obsolete=out/name
+        if obsolete.exists() and digest(obsolete)==old_inventory.get('files',{}).get(name):
+            assert obsolete.resolve().parent==out.resolve() and not obsolete.is_symlink()
+            obsolete.unlink()
     for name,path in items.items():
         dest=out/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,dest)
     (out/'VERSION').write_text(VERSION+'\n')
@@ -109,7 +133,7 @@ def main():
     names=[PRODUCT+'.exe',*items,'VERSION','payload.json']
     inventory={'schema':1,'product':PRODUCT,'version':VERSION,'files':{name:digest(out/name) for name in names}}
     (out/'app-files.json').write_text(json.dumps(signing.sign(inventory),indent=2))
-    package=WORK/(PRODUCT+'-'+VERSION+'-official-DLL-test.zip')
+    package=WORK/(PRODUCT+'-test.zip')
     with zipfile.ZipFile(package,'w',zipfile.ZIP_DEFLATED) as archive:
         for name in [*names,'app-files.json']:archive.write(out/name,name)
     package.with_suffix('.zip.sha256').write_text(digest(package)+'  '+package.name+'\n')

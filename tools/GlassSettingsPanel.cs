@@ -19,14 +19,18 @@ internal sealed class GlassSettingsPanel : UserControl
     readonly System.Collections.Generic.List<Panel> pages = new System.Collections.Generic.List<Panel>();
     readonly System.Collections.Generic.List<Button> tabs = new System.Collections.Generic.List<Button>();
     int selectedIndex;
+    readonly TableLayoutPanel sections=new TableLayoutPanel { Dock=DockStyle.Top,AutoSize=true,ColumnCount=1,Margin=Padding.Empty };
     internal int SelectedIndex {
         get { return selectedIndex; }
-        set {
-            selectedIndex=value;
-            for(int i=0;i<pages.Count;i++) { pages[i].Visible=i==value; WsgTheme.SelectButton(tabs[i],i==value); }
-        }
+        set { selectedIndex=value;for(int i=1;i<pages.Count;i++)SetExpanded(i,i==value); }
+    }
+    void SetExpanded(int index,bool expanded) {
+        pages[index].Visible=expanded;
+        tabs[index].Text=(expanded?"-  ":"+  ")+(index==1?"Advanced":"Experimental");
+        tabs[index].AccessibleDescription=expanded?"Expanded; activate to collapse":"Collapsed; activate to expand";
     }
     readonly Func<string> ini;
+    readonly Dictionary<Control,List<Label>> numberLabels=new Dictionary<Control,List<Label>>();
     readonly Dictionary<string, NumericUpDown> values = new Dictionary<string, NumericUpDown>();
     readonly Dictionary<string, CheckBox> switches = new Dictionary<string, CheckBox>();
     readonly CheckBox extra = new WsgCheckBox { Text = "Extra (up to 100)", AutoSize = true };
@@ -35,6 +39,10 @@ internal sealed class GlassSettingsPanel : UserControl
     readonly CheckBox flip = new WsgCheckBox { Text = "Flip jitter direction", AutoSize = true };
     readonly ToolTip tips = new ToolTip { AutoPopDelay = 20000 };
     readonly Button windowShortcut = new WsgButton { AccessibleName="Change settings window shortcut" };
+    readonly Label shortcutLabel=new WsgLabel { Text="Settings window shortcut",AutoSize=true };
+    readonly Label shortcutHint=new WsgLabel { Text="Click the shortcut to change it.",AutoSize=true };
+    readonly Label reshadeGuide=new WsgLabel { Text="Use the Glass Cockpit DLSS Fix panel in ReShade.",AutoSize=true };
+    internal bool ReShadeMode;
     bool refreshing;
     readonly Button resetGlass, resetAdvanced, resetExperimental;
 
@@ -42,12 +50,10 @@ internal sealed class GlassSettingsPanel : UserControl
     {
         BackColor=WsgTheme.Background; Font=new Font("Segoe UI",10);
         ini = settingsPath;
-        var basic = Page("Glass settings"); var advanced = Page("Advanced"); var experimentalPage = Page("Experimental");
-        var experimental=new Panel { Left=0,Top=0,Width=624,Height=177,AutoScroll=true,TabIndex=0,TabStop=false,BackColor=WsgTheme.Panel };
-        experimentalPage.Controls.Add(experimental);
-        Number(basic, "Line smoothing", "line_smoothing", 50, 35, 16,
-            "0 is sharpest, 35 is the author's default, 50 is DLSS-like. Extra allows softer smoothing up to 100.");
-        extra.SetBounds(438, 18, 160, 28); basic.Controls.Add(extra);
+        AutoSize=true;AutoSizeMode=AutoSizeMode.GrowAndShrink;
+        sections.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));Controls.Add(sections);
+        var basic=Page("Glass settings");var advanced=Page("Advanced");var experimentalPage=Page("Experimental");
+        var experimental=experimentalPage;
         tips.SetToolTip(extra, "Above 50 softens the whole display beyond normal DLSS. Default off.");
         extra.CheckedChanged += delegate {
             if (refreshing) return;
@@ -55,8 +61,9 @@ internal sealed class GlassSettingsPanel : UserControl
             values["line_smoothing"].Maximum = extra.Checked ? 100 : 50;
             Save("extra_smoothing", extra.Checked ? 1 : 0);
         };
-        basic.Controls.Add(new WsgLabel { Text="Settings window shortcut", Left=16,Top=64,Width=212,Height=26 });
-        windowShortcut.SetBounds(235,58,373,32); basic.Controls.Add(windowShortcut);
+        AddLine(basic,shortcutLabel);
+        windowShortcut.Width=300;windowShortcut.Height=34;AddLine(basic,windowShortcut);
+        AddLine(basic,reshadeGuide);
         tips.SetToolTip(windowShortcut,"Click, press your shortcut, then save. Use it in MSFS to open the original settings window and its green-tint button.");
         windowShortcut.Click += delegate {
             using(var recorder=new ShortcutRecorder(ReadWindowShortcut())) {
@@ -65,15 +72,19 @@ internal sealed class GlassSettingsPanel : UserControl
                 catch(Exception e) { ParentDialogPosition.Show(this,e.Message,"Settings window shortcut",MessageBoxButtons.OK,MessageBoxIcon.Information); }
             }
         };
-        Label(basic, "Click the shortcut to change it.", 104, 26);
+        AddLine(basic,shortcutHint);
+        Number(basic,"Line smoothing","line_smoothing",50,35,16,
+            "0 is sharpest, 35 is the author's default, 50 is DLSS-like. Extra allows softer smoothing up to 100.");
+        AddLine(basic,extra);
+
         resetGlass = Reset(basic, "Reset glass settings", 185, delegate { extra.Checked = false; values["line_smoothing"].Value = 35; });
-        flip.SetBounds(16, 19, 400, 28); advanced.Controls.Add(flip);
+        AddLine(advanced,flip);
         tips.SetToolTip(flip, "Leave off unless troubleshooting jitter alignment with the mod author.");
         Number(advanced, "Glass layer strength (%)", "glass_strength", 100, 100, 60,
             "100 preserves the simulator's full glare, dirt and reflections. Lower values reduce this layer.");
         Label(advanced, "Troubleshooting settings — leave at defaults unless needed.", 108, 44);
         resetAdvanced = Reset(advanced, "Reset advanced", 185, delegate { flip.Checked = false; values["glass_strength"].Value = 100; });
-        dark.SetBounds(16, 6, 220, 26); seam.SetBounds(286, 6, 220, 26); experimental.Controls.Add(dark); experimental.Controls.Add(seam);
+        AddLine(experimental,dark);AddLine(experimental,seam);
         tips.SetToolTip(dark, "Helps mostly black screens in strong sun, but can interfere with other displays. Default off. Official v1.0.1 has a known brief glare error when this is enabled.");
         tips.SetToolTip(seam, "Removes lines at texture seams within a display, such as E-Jet bezel bands. Default on.");
         dark.CheckedChanged += delegate { if (!refreshing) Save("dark_screen_fix", dark.Checked ? 1 : 0); };
@@ -86,7 +97,7 @@ internal sealed class GlassSettingsPanel : UserControl
             "Softens screens viewed at steep angles; straight-on screens are unchanged.");
         Number(experimental, "Edge stretcher (100 = 1 pixel)", "edge_stretch", 400, 0, 140,
             "Extends the screen image towards its bezel. Measured in render pixels.");
-        experimental.AutoScroll = true;
+
         Switch(experimental, "Temporal anti-aliasing", "temporal_aa", false, 178,
             "Smooths moving screen details using previous frames. Uses additional VRAM at output resolution; default off. Cannot combine with soft smoothing.");
         Switch(experimental, "Soft-edged line smoothing", "soft_smoothing", false, 210,
@@ -108,45 +119,62 @@ internal sealed class GlassSettingsPanel : UserControl
         });
         flip.CheckedChanged += delegate { if (!refreshing) Save("jitter_positive", flip.Checked ? 0 : 1); };
         foreach(var page in pages) WsgTheme.OrderControls(page);
+        SetExpanded(1,false);SetExpanded(2,false);
         foreach(var item in values) item.Value.AccessibleDescription=tips.GetToolTip(item.Value);
     }
 
+    static void AddLine(Control parent,Control control) {
+        var table=(TableLayoutPanel)parent;int row=table.RowCount++;
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        control.Margin=new Padding(0,4,0,8);control.TabIndex=row;
+        table.Controls.Add(control,0,row);
+    }
     Panel Page(string name) {
         int index=pages.Count;
-        var button=new WsgButton { Text=name, Left=index*210, Top=0, Width=204, Height=34, TabIndex=index };
-        WsgTheme.StyleButton(button,false);
-        button.Click += delegate { SelectedIndex=index; };
-        var page=new Panel { Left=0,Top=44,Width=624,Height=226,BackColor=WsgTheme.Panel,TabIndex=3+index,Visible=index==0 };
-        pages.Add(page);tabs.Add(button);Controls.Add(button);Controls.Add(page);
-        WsgTheme.SelectButton(button,index==0);
-        return page;
+        var button=new WsgButton { Text="+  "+name,Height=36,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft };
+        var page=new TableLayoutPanel { ColumnCount=1,AutoSize=true,Dock=DockStyle.Top,Padding=new Padding(16,10,16,10),Margin=Padding.Empty,BackColor=WsgTheme.Panel };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        pages.Add(page);tabs.Add(button);
+        if(index>0) { AddLine(sections,button);button.Click+=delegate {
+            bool expanded=!page.Visible;SetExpanded(index,expanded);
+            if(expanded)BeginInvoke(new Action(delegate {
+                if(IsDisposed||!page.Visible)return;
+                for(Control parent=Parent;parent!=null;parent=parent.Parent) {
+                    var scroll=parent as ScrollableControl;if(scroll==null||!scroll.AutoScroll)continue;
+                    int top=scroll.PointToClient(button.PointToScreen(Point.Empty)).Y-scroll.AutoScrollPosition.Y;
+                    scroll.AutoScrollPosition=new Point(0,Math.Max(0,top));break;
+                }
+            }));
+        }; }
+        AddLine(sections,page);return page;
     }
-    internal void ApplyTheme() {
-        BackColor=WsgTheme.Background;
-        foreach(var page in pages) WsgTheme.Apply(page);
-        SelectedIndex=selectedIndex;
-    }
+    internal void ApplyTheme() { BackColor=WsgTheme.Background;WsgTheme.Apply(sections); }
     static string Section(string key) { return key == "extra_smoothing" || key == "line_smoothing" || key == "glass_strength" || key == "jitter_positive" ? (key == "glass_strength" ? "advanced" : "overlay") : "experimental"; }
-    static void Label(Control page, string text, int y, int height) { page.Controls.Add(new WsgLabel { Text = text, Left = 16, Top = y, Width = 565, Height = height }); }
-    Button Reset(Control page, string text, int y, Action action) {
-        var button = new WsgButton { Text = text, Left = 16, Top = y, Width = 195, Height = 32 };
-        page.Controls.Add(button); button.Click += delegate { action(); }; return button;
+    static void Label(Control page,string text,int y,int height) { AddLine(page,new WsgLabel { Text=text,AutoSize=true,MaximumSize=new Size(540,0) }); }
+    Button Reset(Control page,string text,int y,Action action) {
+        var button=new WsgButton { Text=text,AutoSize=true,MinimumSize=new Size(200,34) };AddLine(page,button);
+        button.Click+=delegate { action(); };return button;
     }
-    void Number(Control page, string text, string key, int maximum, int fallback, int y, string help) {
-        var label = new WsgLabel { Text = text, Left = 16, Top = y + 4, Width = 310, Height = 26 };
-        var number = new NumericUpDown { Left = 338, Top = y, Width = 82, Height = 28, Minimum = 0, Maximum = maximum, Value = fallback, Tag = fallback, AccessibleName=text };
-        page.Controls.Add(label); page.Controls.Add(number); values.Add(key, number);
-        tips.SetToolTip(label, help); tips.SetToolTip(number, help);
-        number.ValueChanged += delegate { if (!refreshing) Save(key, (int)number.Value); };
+    void Number(Control page,string text,string key,int maximum,int fallback,int y,string help) {
+        var row=new TableLayoutPanel { ColumnCount=3,AutoSize=true,Dock=DockStyle.Top,Margin=Padding.Empty };
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        var label=new WsgLabel { Text=text,AutoSize=true,Anchor=AnchorStyles.Left,Margin=new Padding(0,4,8,4) };
+        var number=new NumericUpDown { Width=90,AutoSize=false,MinimumSize=new Size(90,0),Minimum=0,Maximum=maximum,Value=fallback,Tag=fallback,AccessibleName=text,Anchor=AnchorStyles.Left };
+        if(!numberLabels.ContainsKey(page))numberLabels.Add(page,new List<Label>());
+        numberLabels[page].Add(label);
+        int labelWidth=0;foreach(var item in numberLabels[page])labelWidth=Math.Max(labelWidth,TextRenderer.MeasureText(item.Text,item.Font,Size.Empty,TextFormatFlags.SingleLine|TextFormatFlags.NoPadding).Width);
+        foreach(var item in numberLabels[page])item.MinimumSize=new Size(labelWidth,0);
+        row.Controls.Add(label,0,0);row.Controls.Add(number,1,0);AddLine(page,row);values.Add(key,number);
+        tips.SetToolTip(label,help);tips.SetToolTip(number,help);
+        number.ValueChanged+=delegate { if(!refreshing)Save(key,(int)number.Value); };
     }
-    void Switch(Control page, string text, string key, bool fallback, int y, string help) {
-        var box = new WsgCheckBox { Text=text, Left=16, Top=y, Width=560, Height=28, Checked=fallback, Tag=fallback };
-        switches.Add(key, box); page.Controls.Add(box); tips.SetToolTip(box, help);
-        box.CheckedChanged += delegate {
-            if (refreshing) return;
-            if (box.Checked && (key == "temporal_aa" || key == "soft_smoothing"))
-                switches[key == "temporal_aa" ? "soft_smoothing" : "temporal_aa"].Checked = false;
-            Save(key, box.Checked ? 1 : 0);
+    void Switch(Control page,string text,string key,bool fallback,int y,string help) {
+        var box=new WsgCheckBox { Text=text,AutoSize=true,Checked=fallback,Tag=fallback };
+        switches.Add(key,box);AddLine(page,box);tips.SetToolTip(box,help);
+        box.CheckedChanged+=delegate {
+            if(refreshing)return;
+            if(box.Checked&&(key=="temporal_aa"||key=="soft_smoothing"))switches[key=="temporal_aa"?"soft_smoothing":"temporal_aa"].Checked=false;
+            Save(key,box.Checked?1:0);
         };
     }
     void Save(string key, int value) {
@@ -160,33 +188,38 @@ internal sealed class GlassSettingsPanel : UserControl
         GetPrivateProfileString("hotkeys","settings_window","Ctrl+Shift+F6",value,value.Capacity,ini());
         return value.ToString();
     }
-    void RefreshShortcut() { windowShortcut.Text=ReadWindowShortcut(); }
+    void RefreshShortcut() {
+        windowShortcut.Visible=!ReShadeMode;reshadeGuide.Visible=ReShadeMode;
+        windowShortcut.Enabled=!ReShadeMode;windowShortcut.Text=ReadWindowShortcut();
+        shortcutLabel.Text=ReShadeMode?"In-flight settings":"Settings window shortcut";
+        shortcutHint.Text=ReShadeMode?"Close MSFS to edit here. Use ReShade during a flight.":"Click the shortcut to change it.";
+    }
     void SaveWindowShortcut(string shortcut) {
-        if(!Enabled)return;
+        if(!Enabled||ReShadeMode)return;
         string key=SettingsWindowShortcut.Normalize(shortcut);
         if(!File.Exists(ini()) || !WritePrivateProfileString("hotkeys","settings_window",key,ini()))
             throw new IOException("Could not save the shortcut. Check settings file write access.");
         RefreshShortcut();
     }
-    internal void RefreshValues(bool available) {
+    internal void RefreshValues(bool available,bool readOnly=false) {
         refreshing = true;
         Enabled = available;
+        bool readable=available||readOnly;
         RefreshShortcut();
-        SelectedIndex=selectedIndex;
-        extra.Checked = available && GetPrivateProfileInt("overlay", "extra_smoothing", 0, ini()) != 0;
+        extra.Checked = readable && GetPrivateProfileInt("overlay", "extra_smoothing", 0, ini()) != 0;
         values["line_smoothing"].Maximum = extra.Checked ? 100 : 50;
-        dark.Checked = available && GetPrivateProfileInt("experimental", "dark_screen_fix", 0, ini()) != 0;
-        seam.Checked = !available || GetPrivateProfileInt("experimental", "seam_fix", 1, ini()) != 0;
+        dark.Checked = readable && GetPrivateProfileInt("experimental", "dark_screen_fix", 0, ini()) != 0;
+        seam.Checked = !readable || GetPrivateProfileInt("experimental", "seam_fix", 1, ini()) != 0;
         foreach (var item in switches)
-            item.Value.Checked = available ? GetPrivateProfileInt("experimental", item.Key, (bool)item.Value.Tag ? 1 : 0, ini()) != 0 : (bool)item.Value.Tag;
+            item.Value.Checked = readable ? GetPrivateProfileInt("experimental", item.Key, (bool)item.Value.Tag ? 1 : 0, ini()) != 0 : (bool)item.Value.Tag;
         if (switches["soft_smoothing"].Checked) switches["temporal_aa"].Checked = false;
         foreach (var item in values) {
             // Do not interrupt a user typing a number with the one-second UI refresh.
             if (item.Value.ContainsFocus) continue;
-            int v = available ? unchecked((int)GetPrivateProfileInt(Section(item.Key), item.Key, (int)item.Value.Tag, ini())) : (int)item.Value.Tag;
+            int v = readable ? unchecked((int)GetPrivateProfileInt(Section(item.Key), item.Key, (int)item.Value.Tag, ini())) : (int)item.Value.Tag;
             item.Value.Value = Math.Max(0, Math.Min((int)item.Value.Maximum, v));
         }
-        flip.Checked = available && GetPrivateProfileInt("overlay", "jitter_positive", 1, ini()) == 0;
+        flip.Checked = readable && GetPrivateProfileInt("overlay", "jitter_positive", 1, ini()) == 0;
         refreshing = false;
     }
     protected override void Dispose(bool disposing) {
@@ -195,14 +228,34 @@ internal sealed class GlassSettingsPanel : UserControl
     }
     internal void ReviewLayout(string preview) {
         foreach(var number in values.Values)if(String.IsNullOrEmpty(number.AccessibleName))throw new Exception("Numeric field needs an accessible name");
-        SelectedIndex=2;
-        var scroll=(Panel)values["edge_trim"].Parent;
-        if(resetExperimental.Parent==scroll)throw new Exception("Experimental reset must stay outside scrolling content");
-        scroll.ScrollControlIntoView(values["edge_trim"]);Application.DoEvents();
-        if(!resetExperimental.Parent.ClientRectangle.Contains(resetExperimental.Bounds))throw new Exception("Experimental reset is clipped");
-        var form=FindForm();
+        SelectedIndex=0;Application.DoEvents();CheckNumberSpacing(values["line_smoothing"]);
+        tabs[2].PerformClick();Application.DoEvents();
+        int inputLeft=values["detail_clamp"].Left;
+        foreach(string key in new[]{"detail_clamp","edge_fade","angle_softening","edge_stretch","edge_trim"}) {
+            CheckNumberSpacing(values[key]);
+            if(Math.Abs(values[key].Left-inputLeft)>2)throw new Exception("Experimental input columns must align");
+        }
+        ScrollableControl scroll=null;
+        for(Control parent=Parent;parent!=null;parent=parent.Parent) {
+            var candidate=parent as ScrollableControl;if(candidate!=null&&candidate.AutoScroll) { scroll=candidate;break; }
+        }
+        if(scroll!=null) {
+            if(!scroll.ClientRectangle.Contains(scroll.RectangleToClient(dark.RectangleToScreen(dark.ClientRectangle))))throw new Exception("Expanding Experimental must reveal its first option");
+            scroll.ScrollControlIntoView(resetExperimental);CheckResetVisible(scroll);
+        }
+        Application.DoEvents();var form=FindForm();
         using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,b.Width,b.Height));b.Save(preview+".experimental-bottom.png"); }
-        scroll.AutoScrollPosition=Point.Empty;SelectedIndex=0;
+        if(scroll!=null)scroll.AutoScrollPosition=Point.Empty;SelectedIndex=0;
+    }
+    static void CheckNumberSpacing(NumericUpDown number) {
+        var row=(TableLayoutPanel)number.Parent;var label=(Label)row.GetControlFromPosition(0,0);
+        int gap=number.Left-label.Right;
+        if(gap<0||gap>Math.Max(20,label.Font.Height))throw new Exception("Numeric input is too far from its label column");
+        if(number.Right>row.ClientSize.Width)throw new Exception("Numeric input is clipped");
+    }
+    void CheckResetVisible(ScrollableControl scroll) {
+        var bounds=scroll.RectangleToClient(resetExperimental.RectangleToScreen(resetExperimental.ClientRectangle));
+        if(!scroll.ClientRectangle.Contains(bounds))throw new Exception("Experimental reset must be fully visible after scrolling");
     }
     internal void SelfTest(string preview) {
         byte[] original = File.ReadAllBytes(ini());
@@ -240,6 +293,9 @@ internal sealed class GlassSettingsPanel : UserControl
                 recorder.RecordKey(Keys.Escape);
                 if(recorder.DialogResult!=DialogResult.Cancel || ReadWindowShortcut()!="Ctrl+5")throw new Exception("Cancel modified shortcut");
             }
+            WritePrivateProfileString("overlay","line_smoothing","29",ini());
+            byte[] readOnlyIni=File.ReadAllBytes(ini());RefreshValues(false,true);
+            if(Enabled||values["line_smoothing"].Value!=29||Convert.ToBase64String(readOnlyIni)!=Convert.ToBase64String(File.ReadAllBytes(ini())))throw new Exception("Read-only settings must show the saved values without writing");
             RefreshValues(false); SaveWindowShortcut("Pause");
             if(ReadWindowShortcut()!="Ctrl+5")throw new Exception("Disabled controls wrote shortcut");
             RefreshValues(true); SaveWindowShortcut("Pause");

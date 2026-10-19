@@ -43,3 +43,14 @@ For v1.0.0, first compare the same flight with existing glass settings. Check bo
 ## v1.0.2 aircraft checks
 
 Check startup first, then FSLabs A321neo loading if available, red radio digits (e.g. A2A Comanche), and BendixKing radio shimmer (e.g. Cessna 152). Keep existing glass and OFXR settings fixed. The offline suite tests synthetic shader cases and startup-hook compatibility; it cannot reproduce third-party aircraft protection or every MSFS installation.
+
+
+## UI changes: regression and live acceptance gate
+
+Use the exact final test ZIP in an isolated app folder and marked dummy-game fixture. Do not point interactive tests at a real simulator. Run UI and installer suites sequentially; they share desktop focus and some use an inert simulator-named process.
+
+1. Run `python -B tests/ui_paint_regression_tests.py`. It checks 192 dirty-buffer/full-and-partial checkbox repaint combinations, translated/clipped painting, glyph sizing and native activation. It also compiles the known-broken renderer without its background fill and requires the stale-pixel test to fail. A clean screenshot is not a substitute for this regression.
+2. Run `python -B tests/official_engine_tests.py` and `python -B tests/installation_mode_tests.py`. Include installed/uninstalled, standalone/add-on, running add-on, incomplete/recovery, pending selection, dropdown refresh and navigation without settings writes. Layout checks cover both themes, simulated 100/125/150/200% scaling, a constrained working area, whole-button containment, label/input spacing, expanded options and a fully reachable reset.
+3. Run `python -B tests/development_package_tests.py` against the shipped ZIP. Verify its signature and contents, source-archive folder, install/uninstall and independent-settings preservation.
+4. Inspect the real running app with computer-use after the final rendering/layout change: initial open, theme changes, tab navigation, keyboard focus, checkbox glyph and label activation, expanding sections, and scrolling out and back. Inspect for ghost text, stale backgrounds and partial controls after each transition, not just a freshly generated bitmap. Compare with a known failing build when fixing a rendering regression.
+5. Record actual coverage and limitations in VALIDATION.md. Simulated scaling previews are not live Windows DPI testing; automated shortcut/dropdown checks are not manual interaction. If a tool blocks an action, report that gap. Rebuilds after this check require retesting the changed behavior before calling the package reviewed.

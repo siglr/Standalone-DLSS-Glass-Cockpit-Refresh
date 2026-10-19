@@ -1,0 +1,16 @@
+{
+  "release": "v1.0.2.10",
+  "repository": "siglr/Standalone-DLSS-Glass-Cockpit-Refresh",
+  "files": {
+    "Standalone-DLSS-Glass-Cockpit-Refresh-bridge-source.zip": "d4f65dce7708eab82e21ff940929e7cc992ec3f7ccf92f191c446f9e2bd9319a",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-bridge-source.zip.sha256": "3378d4465e5c8a5f52f4f65e7bc36b5bc9f96bc6b935015a91e11f47eb024a38",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-bridge.version.json": "f7324a54b18b15424dd25977191484eea99aee0769ecdcc6a8b54008ba7fb825",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-bridge.zip": "44c734643c8db41cc82d4f13487d466c5005276b6e00efe5a913260bb1e67ddf",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-bridge.zip.sha256": "0f0be2570943516562ae5bd4dd691bf208788b34881ed0cba44d3a78c747e613",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-legacy-source.zip": "a7a38676c758dcf6a87d63732fe53f31dcf47a64998acce373277ba7850e1fab",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-legacy-source.zip.sha256": "209da032597dfd2b5924e7a4eefe0be341419895db9bb9c279d93f64f8b8657a",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-legacy.version.json": "c2d3a2c7803c5e6f42e988831419c527e28926add2b7fc364122147f10fbdf9a",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-legacy.zip": "595b1f1031d8fd80add53d834b7fcbdd1d2a761d47a9affffdff7f6c60ac05fb",
+    "Standalone-DLSS-Glass-Cockpit-Refresh-legacy.zip.sha256": "62b22a74fd6a20afe7a69e91bbf9f10c69d65d40e5aa7985b052e5952d426d54"
+  }
+}

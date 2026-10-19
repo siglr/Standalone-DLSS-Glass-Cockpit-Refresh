@@ -21,12 +21,20 @@ internal sealed class GlassWindow : Form
     readonly Label note = new WsgLabel();
     readonly LinkLabel upstream = new LinkLabel();
     readonly LinkLabel credit = new LinkLabel();
-    readonly Label engineLabel = new WsgLabel { Text="DLL version" };
     readonly ComboBox engineVersions=new WsgComboBox { DropDownStyle=ComboBoxStyle.DropDownList };
-    readonly Button applyEngine=new WsgButton { Text="Install selected DLL" };
+    readonly ComboBox installMode=new WsgComboBox { DropDownStyle=ComboBoxStyle.DropDownList };
+    readonly Label modeHint=new WsgLabel { Font=new Font("Segoe UI",9),Tag="muted" };
+    bool upstreamStarted;
+    int upstreamRequest;
+    bool AddonMode { get { return installMode.SelectedIndex==1; } }
+    static bool SimulatorRunning() {
+        var processes=Process.GetProcessesByName("FlightSimulator2024");
+        bool running=processes.Length>0;foreach(var process in processes)process.Dispose();return running;
+    }
+    string BinaryName { get { return AddonMode?UpstreamRelease.AddonName:"dxgi.dll"; } }
+    string BundledHash { get { return AddonMode?UpstreamRelease.AddonHash:UpstreamRelease.ZipHash; } }
     UpstreamRelease.Choice latestEngine;
     UpstreamRelease.Choice[] pendingEngineChoices;
-    string footerLayoutKey;
     string upstreamUrl=UpstreamRelease.Repository+"/releases/tag/v"+UpstreamRelease.Version;
     readonly Button install = new WsgButton { Text="Install", Tag="primary" };
     readonly Button uninstall = new WsgButton { Text="Uninstall" };
@@ -41,6 +49,20 @@ internal sealed class GlassWindow : Form
     readonly PictureBox brand;
     readonly System.Collections.Generic.Dictionary<string,Tuple<string,string>> fileHashes =
         new System.Collections.Generic.Dictionary<string,Tuple<string,string>>(StringComparer.OrdinalIgnoreCase);
+    readonly Panel setupPage=new Panel { Dock=DockStyle.Fill,Tag="surface" };
+    readonly Panel setupScroll=new Panel { Dock=DockStyle.Fill,AutoScroll=true,Tag="surface" };
+    readonly Panel settingsPage=new Panel { Dock=DockStyle.Fill,AutoScroll=true,Tag="surface" };
+    readonly TableLayoutPanel setupContent=Column();
+    readonly TableLayoutPanel settingsContent=Column();
+    readonly Button setupTab=new WsgButton { Text="Setup" };
+    readonly Button settingsTab=new WsgButton { Text="Settings" };
+    readonly Label installedSummary=new WsgLabel { AutoSize=true };
+    readonly Label compatibility=new WsgLabel { AutoSize=true };
+    readonly Label compatibilityHint=new WsgLabel { AutoSize=true };
+    readonly Panel emptySettings=new Panel { Dock=DockStyle.Top,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Tag="surface" };
+    string currentPage="Setup",compatibilityStamp;
+
+    bool FollowLatest { get { var choice=engineVersions.SelectedItem as UpstreamRelease.Choice;return choice==null||choice.Id==-1; } }
     bool busy, refreshing;
     string Target { get { return folder.Text; } }
     string Ini { get { return Path.Combine(Target, "glass-cockpit-dlss-fix.ini"); } }
@@ -50,150 +72,218 @@ internal sealed class GlassWindow : Form
     {
         try { WsgTheme.Light=File.ReadAllText(Path.Combine(Package,"Appearance.txt")).Trim()=="light"; }
         catch(IOException) { WsgTheme.Light=false; } catch(UnauthorizedAccessException) { WsgTheme.Light=false; }
-        Text="Standalone-DLSS-Glass-Cockpit-Refresh v" + global::ProductVersion.Value;
-        Font=new Font("Segoe UI",10); AutoScaleDimensions=new SizeF(96,96); AutoScaleMode=AutoScaleMode.Dpi;
-        BackColor=WsgTheme.Background; ForeColor=WsgTheme.Text;
-        brandIcon=WsgTheme.LoadIcon(); Icon=brandIcon;
-        brand=new PictureBox { Image=WsgTheme.LoadLogo(), SizeMode=PictureBoxSizeMode.Zoom, TabStop=false, AccessibleName="WeSimGlide logo" };
-        brand.SetBounds(18,18,48,48);
+        Text="Standalone-DLSS-Glass-Cockpit-Refresh v"+global::ProductVersion.Value;
 #if GLASS_NO_AUTO_UPDATE
-        Text += " (source build)";
+        Text+=" (source build)";
 #endif
-        ClientSize=new Size(660,704); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false;
-        StartPosition=FormStartPosition.CenterScreen;
-        var title=new WsgLabel { Text="Glass Cockpit Refresh", Font=new Font("Segoe UI",18,FontStyle.Bold), AutoSize=false };
-        title.SetBounds(78,14,420,34);
-        var subtitle=new WsgLabel { Text="MSFS 2024  /  Desktop + VR", ForeColor=WsgTheme.Muted };
-        subtitle.SetBounds(80,48,400,24);
-        var folderLabel=new WsgLabel { Text="MSFS 2024 GAME FOLDER", Font=new Font("Segoe UI",8,FontStyle.Bold) };
-        folderLabel.SetBounds(18,84,520,18);
-        folder.SetBounds(18,106,518,28); browse.SetBounds(546,103,96,32);
-        var about=new LinkLabel { Text="Help", TextAlign=ContentAlignment.MiddleCenter, AccessibleDescription="Show instructions and support guidance" };
-        about.SetBounds(578,15,64,26);
-        var website=new LinkLabel { Text="About", TextAlign=ContentAlignment.MiddleCenter, Left=510,Top=15,Width=64,Height=26 };
+        Font=new Font("Segoe UI",10);AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
+        ClientSize=new Size(740,660);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
+        brandIcon=WsgTheme.LoadIcon();Icon=brandIcon;
+        brand=new PictureBox { Image=WsgTheme.LoadLogo(),SizeMode=PictureBoxSizeMode.Zoom,TabStop=false,AccessibleName="WeSimGlide logo" };
+        var title=new WsgLabel { Text="Glass Cockpit Refresh" };
+        var subtitle=new WsgLabel { Text="MSFS 2024  /  Desktop + VR",Tag="muted" };
+        var folderLabel=Caption("MSFS 2024 GAME FOLDER");
+        var help=new LinkLabel { Text="Help",TextAlign=ContentAlignment.MiddleCenter };
+        var website=new LinkLabel { Text="About",TextAlign=ContentAlignment.MiddleCenter };
+        help.LinkClicked+=delegate { ShowHelp(); };
         website.LinkClicked+=delegate { OpenSupport("https://wesimglide.org/otherdata/tools/Standalone-DLSS-Glass-Cockpit-Refresh.html"); };
-        Controls.Add(website);
-        darkTheme.SetBounds(510,48,64,28); lightTheme.SetBounds(578,48,64,28);
-        darkTheme.Click += delegate { SelectAppearance(false); };
-        lightTheme.Click += delegate { SelectAppearance(true); };
-        about.LinkClicked += delegate {
-            ParentDialogPosition.Show(this,"Start MSFS normally. Glass changes apply during upscaling without leaving VR.\n\nClick the settings shortcut to record a new binding. Use it while MSFS has focus; the original window includes green tint and diagnostics. Choose a shortcut unused by your other tools.\n\nFrame generation requires the separate official OFXR Bridge.\n\nInstaller questions: use Installer support. Screen issues with the official DLL: use Screen issues.","Glass Cockpit Refresh — Help",MessageBoxButtons.OK,MessageBoxIcon.Information);
-        };
-        status.SetBounds(18,141,625,24); install.SetBounds(18,172,130,34); uninstall.SetBounds(160,172,130,34);
-        var installerHelp=new LinkLabel { Text="Installer support", Left=316,Top=179,Width=162,Height=24 };
-        var screenHelp=new LinkLabel { Text="Screen issues", Left=482,Top=179,Width=160,Height=24 };
-        installerHelp.LinkClicked += delegate { OpenSupport("https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh/issues"); };
-        screenHelp.LinkClicked += delegate { OpenSupport(UpstreamRelease.Repository+"/issues"); };
-        Controls.AddRange(new Control[]{installerHelp,screenHelp});
-        enabled.SetBounds(20,223,610,30);
-        note.Font=new Font("Segoe UI",9);
-        note.SetBounds(18,551,625,36);
-        appUpdate.Font=new Font("Segoe UI",8.5f);
+        darkTheme.Click+=delegate { SelectAppearance(false); };lightTheme.Click+=delegate { SelectAppearance(true); };
+        installMode.Items.AddRange(new object[]{"Standalone DLL","ReShade add-on"});installMode.SelectedIndex=0;
+        installMode.AccessibleName="Installation mode";
+        engineVersions.AccessibleName="Official fix version";
+        engineVersions.AccessibleDescription="Latest is recommended. Select a specific version for rollback or offline installation. Selection alone installs nothing.";
+        hints.SetToolTip(engineVersions,engineVersions.AccessibleDescription);
+        engineVersions.Items.Add(new UpstreamRelease.Choice { Id=-1,Tag="latest" });engineVersions.SelectedIndex=0;
+        folder.AccessibleName="MSFS 2024 game folder";
         credit.Text="Installer: siglr / WSG · Glass Cockpit DLSS Fix by IFreemz";
-        credit.Font=new Font("Segoe UI",8.5f);credit.AccessibleDescription="Separate installer by siglr and official GPL-3 graphics DLL by IFreemz";
-        credit.SetBounds(18,589,625,20);
-        credit.LinkClicked += delegate {
-            try { Process.Start(new ProcessStartInfo("https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix") { UseShellExecute=true }); }
-            catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
+        credit.Font=new Font("Segoe UI",8.5f);credit.LinkClicked+=delegate { OpenSupport(UpstreamRelease.Repository); };
+        appUpdate.Font=new Font("Segoe UI",8.5f);appUpdate.Tag="muted";appUpdate.AutoEllipsis=true;
+        status.AutoEllipsis=true;upstream.AutoEllipsis=true;
+        status.TextChanged+=delegate { hints.SetToolTip(status,status.Text);PaintStatus(); };
+        appUpdate.TextChanged+=delegate { hints.SetToolTip(appUpdate,appUpdate.Text); };
+        upstream.LinkClicked+=delegate { OpenSupport(upstreamUrl); };
+        glass=new GlassSettingsPanel(()=>Ini);
+        BuildPages(title,subtitle,website,help,folderLabel);
+        installMode.SelectedIndexChanged+=delegate {
+            latestEngine=null;pendingEngineChoices=null;engineVersions.Items.Clear();PopulateEngineChoices(new UpstreamRelease.Choice[0]);
+            if(upstreamStarted)CheckUpstream();
         };
-        Controls.Add(credit);
-        upstream.SetBounds(18,636,625,20);upstream.Font=new Font("Segoe UI",8.5f);
-        upstream.Text="Checking official DLL updates…";
-        upstream.LinkClicked += delegate { try { Process.Start(new ProcessStartInfo(upstreamUrl) { UseShellExecute=true }); } catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); } };
-        Controls.Add(upstream);
-        engineLabel.SetBounds(18,666,98,24);
-        engineVersions.SetBounds(120,661,265,30);applyEngine.SetBounds(399,658,243,34);
-        engineVersions.Items.Add(new UpstreamRelease.Choice { Id=0,Tag="v"+UpstreamRelease.Version });engineVersions.SelectedIndex=0;
-        engineVersions.SelectedIndexChanged += delegate { RefreshState(); };
-        engineVersions.DropDownClosed += delegate {
-            // Let the native combo finish committing its selection before rebuilding anything.
+        engineVersions.SelectedIndexChanged+=delegate { RefreshState(); };
+        engineVersions.DropDownClosed+=delegate {
             BeginInvoke(new Action(delegate {
-                if(IsDisposed || engineVersions.DroppedDown)return;
-                if(pendingEngineChoices!=null) {
-                    var selected=engineVersions.SelectedItem as UpstreamRelease.Choice;
-                    var choices=pendingEngineChoices;pendingEngineChoices=null;
-                    PopulateEngineChoices(choices);
-                    if(selected!=null)for(int i=0;i<engineVersions.Items.Count;i++) {
-                        var item=(UpstreamRelease.Choice)engineVersions.Items[i];
-                        if(item.Id==selected.Id && item.Tag==selected.Tag) { engineVersions.SelectedIndex=i;break; }
-                    }
-                }
+                if(IsDisposed||engineVersions.DroppedDown)return;
+                if(pendingEngineChoices!=null) { var choices=pendingEngineChoices;pendingEngineChoices=null;PopulateEngineChoices(choices); }
                 RefreshState();
             }));
         };
-        applyEngine.Click += async delegate { await SetupSelectedEngine(); };
-        Controls.AddRange(new Control[]{engineLabel,engineVersions,applyEngine});
-        appUpdate.SetBounds(18,613,625,20);
-        Controls.AddRange(new Control[] { brand,title,subtitle,folderLabel,about,darkTheme,lightTheme,folder,browse,status,install,uninstall,enabled,note,appUpdate });
-        subtitle.Tag=folderLabel.Tag=note.Tag=appUpdate.Tag="muted";
-        glass = new GlassSettingsPanel(() => Ini);
-        glass.SetBounds(18, 266, 624, 270); Controls.Add(glass); RefreshAppearance();
-        Control[] navigation={website,about,darkTheme,lightTheme,folder,browse,install,uninstall,installerHelp,screenHelp,enabled,glass,credit,upstream,engineVersions,applyEngine};
-        for(int i=0;i<navigation.Length;i++)navigation[i].TabIndex=i;
-        folder.AccessibleName="MSFS 2024 game folder";
-        engineVersions.AccessibleName="Official DLL version";
-        engineVersions.AccessibleDescription="Choose an official version to install or roll back to. Selecting alone does not install it.";
-        install.AccessibleDescription="Install or update to the latest verified official DLL.";
-        applyEngine.AccessibleDescription="Install the version selected in the DLL version list, including an older version for rollback.";
-        hints.SetToolTip(install,install.AccessibleDescription);hints.SetToolTip(applyEngine,applyEngine.AccessibleDescription);
-        hints.SetToolTip(engineVersions,engineVersions.AccessibleDescription);
-        folder.TextChanged+=delegate { hints.SetToolTip(folder,folder.Text); };
-        status.AutoEllipsis=true; status.TextChanged+=delegate { hints.SetToolTip(status,status.Text); PaintStatus(); };
-        appUpdate.AutoEllipsis=true; appUpdate.TextChanged+=delegate { hints.SetToolTip(appUpdate,appUpdate.Text); };
-        appUpdate.TextChanged+=delegate { LayoutFooter(); }; LayoutFooter();
-        foreach(Control control in new Control[]{website,about,darkTheme,lightTheme,browse})control.Anchor=AnchorStyles.Top|AnchorStyles.Right;
-        folder.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-        HandleCreated += delegate { WsgTheme.TitleBar(this); };
-        browse.Click += delegate { using(var d=new FolderBrowserDialog { SelectedPath=Target,Description="Choose the folder containing FlightSimulator2024.exe (Xbox Content or Steam game folder)." }) {
-            using(var position=new ParentDialogPosition(this))
-                if(d.ShowDialog(this)!=DialogResult.OK) return;
-            if(!File.Exists(Path.Combine(d.SelectedPath,"FlightSimulator2024.exe"))) { ParentDialogPosition.Show(this,"Choose the folder containing FlightSimulator2024.exe.",Text);return; }
-            folder.Text=d.SelectedPath;
-            try { File.WriteAllText(Path.Combine(Package,"SimulatorDirectory.txt"),Target); } catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
+        folder.TextChanged+=delegate {
+            hints.SetToolTip(folder,folder.Text);var receipt=CurrentReceipt();
+            installMode.SelectedIndex=(receipt!=null?NativeInstaller.UsesAddon(receipt):NativeInstaller.HasRootAddon(Target))?1:0;
             RefreshState();
-        }};
-        enabled.CheckedChanged += delegate {
-            if(refreshing) return;
-            if(!File.Exists(Receipt) || !File.Exists(Ini) || !WritePrivateProfileString("overlay","enabled",enabled.Checked ? "1":"0",Ini))
+        };
+        browse.Click+=delegate {
+            using(var dialog=new FolderBrowserDialog { SelectedPath=Target,Description="Choose the folder containing FlightSimulator2024.exe (Xbox Content or Steam game folder)." })
+            using(var position=new ParentDialogPosition(this)) {
+                if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+                if(!File.Exists(Path.Combine(dialog.SelectedPath,"FlightSimulator2024.exe"))) { ParentDialogPosition.Show(this,"Choose the folder containing FlightSimulator2024.exe.",Text);return; }
+                folder.Text=dialog.SelectedPath;
+                try { File.WriteAllText(Path.Combine(Package,"SimulatorDirectory.txt"),Target); } catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
+                SelectPage("Setup",true);
+            }
+        };
+        enabled.CheckedChanged+=delegate {
+            if(refreshing||!enabled.Enabled)return;
+            if(!File.Exists(Receipt)||!File.Exists(Ini)||!WritePrivateProfileString("overlay","enabled",enabled.Checked?"1":"0",Ini))
                 ParentDialogPosition.Show(this,"Could not save the setting. Check settings file write access.",Text);
             RefreshState();
         };
-        install.Click += async delegate { await SetupLatestEngine(); };
-        uninstall.Click += async delegate { await Setup(true); };
-        timer.Tick += delegate { RefreshState(); };
-        FormClosing += delegate(object sender,FormClosingEventArgs e) { if(busy) e.Cancel=true; };
-        FormClosed += delegate { timer.Dispose(); hints.Dispose(); brand.Image.Dispose(); brandIcon.Dispose(); };
+        install.Click+=async delegate { if(FollowLatest)await SetupLatestEngine();else await SetupSelectedEngine(); };
+        uninstall.Click+=async delegate { await Setup(true); };
+        timer.Tick+=delegate { RefreshState(); };
+        FormClosing+=delegate(object sender,FormClosingEventArgs e) { if(busy)e.Cancel=true; };
+        FormClosed+=delegate { timer.Dispose();hints.Dispose();brand.Image.Dispose();brandIcon.Dispose(); };
+        HandleCreated+=delegate { WsgTheme.TitleBar(this); };
+        PopulateEngineChoices(new UpstreamRelease.Choice[0]);RefreshAppearance();RefreshState();
     }
-    void LayoutFooter() {
-        if(engineVersions.DroppedDown)return;
-        float scale=glass.Height/270f;
-        Func<int,int> px=value=>(int)Math.Round(value*scale);
-        int y=glass.Bottom+px(12);
-        bool showNote=note.Text.Length>0;
-        bool showUpdate=appUpdate.Text.Length>0 && !appUpdate.Text.StartsWith("Source build:");
-        string layoutKey=glass.Bounds.ToString()+"|"+showNote+"|"+showUpdate;
-        if(footerLayoutKey==layoutKey)return;
-        footerLayoutKey=layoutKey;
-        note.Visible=showNote;
-        if(showNote) { note.SetBounds(px(18),y,px(625),px(24));y+=px(28); }
-        credit.SetBounds(px(18),y,px(625),px(20));y+=px(26);
-        // Development mode is already identified in the title. Keep actionable update status visible.
-        appUpdate.Visible=showUpdate;
-        if(showUpdate) { appUpdate.SetBounds(px(18),y,px(625),px(20));y+=px(24); }
-        upstream.SetBounds(px(18),y,px(625),px(20));y+=px(26);
-        engineLabel.SetBounds(px(18),y+px(6),px(98),px(24));engineVersions.SetBounds(px(120),y+px(1),px(265),px(30));applyEngine.SetBounds(px(399),y-px(2),px(243),px(34));
-        if(ClientSize.Height!=y+px(44))ClientSize=new Size(ClientSize.Width,y+px(44));
+    static TableLayoutPanel Column() {
+        var table=new TableLayoutPanel { ColumnCount=1,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Height=1,Dock=DockStyle.Top,Margin=Padding.Empty,Tag="surface" };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));return table;
+    }
+    static void Row(TableLayoutPanel table,Control control,int height=0) {
+        int row=table.RowCount++;table.RowStyles.Add(height==0?new RowStyle(SizeType.AutoSize):new RowStyle(SizeType.Absolute,height));
+        control.Dock=DockStyle.Fill;control.Margin=new Padding(0,0,0,6);control.TabIndex=row;
+        table.Controls.Add(control,0,row);
+    }
+    static TableLayoutPanel Pair(Control left,Control right,int rightWidth,int height) {
+        var pair=new TableLayoutPanel { ColumnCount=2,Height=height,Margin=Padding.Empty,Dock=DockStyle.Top,Tag="surface" };
+        pair.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));pair.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,rightWidth));
+        left.Dock=right.Dock=DockStyle.Fill;left.Margin=new Padding(0,0,10,0);right.Margin=Padding.Empty;
+        pair.Controls.Add(left,0,0);pair.Controls.Add(right,1,0);return pair;
+    }
+    static Label Caption(string text) { return new WsgLabel { Text=text,AutoSize=true,Font=new Font("Segoe UI",9,FontStyle.Bold),Margin=new Padding(0,8,0,4) }; }
+    static void FitDropdownRow(TableLayoutPanel table,ComboBox dropdown) {
+        // Owner-drawn ComboBox's cached preferred size can omit part of its native border.
+        // Track the actual closed height, including margins, after font/DPI changes.
+        Action fit=delegate {
+            RowStyle row=table.RowStyles[table.GetRow(dropdown)];
+            int height=dropdown.Height+dropdown.Margin.Vertical;
+            if(row.SizeType!=SizeType.Absolute)row.SizeType=SizeType.Absolute;
+            if(row.Height!=height)row.Height=height;
+        };
+        dropdown.SizeChanged+=delegate { fit(); };dropdown.MarginChanged+=delegate { fit(); };
+        table.Layout+=delegate { fit(); };fit();
+    }
+    void BuildPages(Label title,Label subtitle,LinkLabel website,LinkLabel help,Label folderLabel) {
+        SuspendLayout();Controls.Clear();
+        var shell=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(18,14,18,10),Tag="surface" };
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        shell.RowStyles.Add(new RowStyle(SizeType.AutoSize));shell.RowStyles.Add(new RowStyle(SizeType.Absolute,44));
+        shell.RowStyles.Add(new RowStyle(SizeType.Percent,100));shell.RowStyles.Add(new RowStyle(SizeType.Absolute,54));
+        var heading=new TableLayoutPanel { ColumnCount=3,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Dock=DockStyle.Fill,MinimumSize=new Size(0,70),Margin=Padding.Empty,Tag="surface" };
+        heading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,58));heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));heading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,146));
+        brand.Dock=DockStyle.Top;brand.Size=new Size(48,48);brand.Margin=Padding.Empty;
+        var titles=Column();title.AutoSize=true;title.Font=new Font("Segoe UI",17,FontStyle.Bold);subtitle.AutoSize=true;
+        Row(titles,title);Row(titles,subtitle);heading.Controls.Add(brand,0,0);heading.Controls.Add(titles,1,0);
+        var links=new TableLayoutPanel { ColumnCount=2,RowCount=2,Height=1,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Dock=DockStyle.Top,Margin=Padding.Empty,Tag="surface" };
+        links.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));links.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));
+        links.RowStyles.Add(new RowStyle(SizeType.AutoSize));links.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        foreach(var link in new[]{website,help}) { link.AutoSize=true;link.MinimumSize=new Size(0,24);link.Dock=DockStyle.Fill;link.Margin=new Padding(0,0,0,6); }
+        foreach(var button in new[]{darkTheme,lightTheme}) { button.AutoSize=true;button.MinimumSize=new Size(0,34);button.Padding=new Padding(6,4,6,4);button.Dock=DockStyle.Fill; }
+        darkTheme.Margin=new Padding(0,0,4,6);lightTheme.Margin=new Padding(4,0,0,6);
+        links.Controls.Add(website,0,0);links.Controls.Add(help,1,0);links.Controls.Add(darkTheme,0,1);links.Controls.Add(lightTheme,1,1);
+        heading.Controls.Add(links,2,0);
+        shell.Controls.Add(heading,0,0);
+        var navigation=new TableLayoutPanel { ColumnCount=2,Dock=DockStyle.Fill,Margin=new Padding(0,0,0,8),Tag="surface" };
+        navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));
+        setupTab.Dock=settingsTab.Dock=DockStyle.Fill;setupTab.Margin=new Padding(0,0,4,0);settingsTab.Margin=new Padding(4,0,0,0);
+        navigation.Controls.Add(setupTab,0,0);navigation.Controls.Add(settingsTab,1,0);shell.Controls.Add(navigation,0,1);
+        setupTab.Click+=delegate { SelectPage("Setup",true); };settingsTab.Click+=delegate { SelectPage("Settings",true); };
+        var content=new Panel { Dock=DockStyle.Fill,Margin=Padding.Empty,Tag="surface" };content.Controls.Add(setupPage);content.Controls.Add(settingsPage);shell.Controls.Add(content,0,2);
+        var setupLayout=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty,Tag="surface" };
+        setupLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        setupLayout.RowStyles.Add(new RowStyle(SizeType.Percent,100));setupLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        setupPage.Controls.Add(setupLayout);setupLayout.Controls.Add(setupScroll,0,0);setupScroll.Margin=Padding.Empty;
+        setupContent.Padding=new Padding(0,4,14,8);setupScroll.Controls.Add(setupContent);
+        folderLabel.AutoSize=true;Row(setupContent,folderLabel);Row(setupContent,Pair(folder,browse,96,32),40);
+        var modeRow=new TableLayoutPanel { ColumnCount=2,RowCount=1,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,Dock=DockStyle.Fill,Tag="surface" };
+        modeRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        modeRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,120));modeRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        var modeLabel=Caption("Install as");modeLabel.Dock=DockStyle.Fill;installMode.Dock=DockStyle.Fill;modeRow.Controls.Add(modeLabel,0,0);modeRow.Controls.Add(installMode,1,0);
+        // Native combo height follows its font/item metrics; fixed rows can crop its lower border.
+        Row(setupContent,modeRow);modeHint.AutoSize=true;Row(setupContent,modeHint);
+        Row(setupContent,installedSummary);Row(setupContent,Caption("Install version"));Row(setupContent,engineVersions);
+        FitDropdownRow(modeRow,installMode);FitDropdownRow(setupContent,engineVersions);
+        upstream.AutoSize=false;Row(setupContent,upstream,28);status.AutoSize=false;Row(setupContent,status,30);
+        var actions=new FlowLayoutPanel { AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=true,Dock=DockStyle.Fill,Margin=new Padding(0,8,0,0),Tag="surface" };
+        install.Size=new Size(220,36);uninstall.Size=new Size(130,36);actions.Controls.Add(install);actions.Controls.Add(uninstall);setupLayout.Controls.Add(actions,0,1);
+        Row(setupContent,Caption("Compatibility"));Row(setupContent,compatibility);Row(setupContent,compatibilityHint);
+        settingsContent.Padding=new Padding(0,4,14,8);settingsPage.Controls.Add(settingsContent);
+        Row(settingsContent,emptySettings);
+        var emptyLayout=Column();emptySettings.Controls.Add(emptyLayout);Row(emptyLayout,new WsgLabel { Text="Install the fix to configure it.",AutoSize=true });
+        var go=new WsgButton { Text="Go to Setup",Width=150,Height=34 };Row(emptyLayout,go,42);go.Click+=delegate { SelectPage("Setup",true); };
+        enabled.AutoSize=true;Row(settingsContent,enabled);note.AutoSize=true;Row(settingsContent,note);glass.Dock=DockStyle.Top;Row(settingsContent,glass);
+        var footer=Column();footer.Padding=new Padding(0,10,0,0);credit.AutoSize=false;credit.AutoEllipsis=true;credit.Dock=DockStyle.Fill;Row(footer,credit,22);
+        appUpdate.AutoSize=false;Row(footer,appUpdate,22);shell.Controls.Add(footer,0,3);
+        bool sizingFooter=false;
+        Action sizeFooter=delegate {
+            if(sizingFooter)return;sizingFooter=true;
+            try {
+                int total=footer.Padding.Vertical;
+                int index=0;foreach(Control line in new Control[]{credit,appUpdate}) {
+                    int textHeight=TextRenderer.MeasureText("Agyp",line.Font).Height;
+                    int height=textHeight+Math.Max(4,textHeight/4)+line.Margin.Vertical;
+                    if(footer.RowStyles[index].Height!=height)footer.RowStyles[index].Height=height;
+                    total+=height;index++;
+                }
+                if(shell.RowStyles[3].Height!=total)shell.RowStyles[3].Height=total;
+            } finally { sizingFooter=false; }
+        };
+        credit.FontChanged+=delegate { sizeFooter(); };appUpdate.FontChanged+=delegate { sizeFooter(); };
+        footer.Layout+=delegate { sizeFooter(); };sizeFooter();
+        hints.SetToolTip(credit,credit.Text);
+        Controls.Add(shell);SelectPage("Setup",false);ResumeLayout(true);
+    }
+    void LayoutFooter() { /* Reserved footer rows keep status updates from moving controls. */ }
+    void SelectPage(string page,bool remember) {
+        currentPage=page=="Settings"?"Settings":"Setup";
+        setupPage.Visible=currentPage=="Setup";settingsPage.Visible=!setupPage.Visible;
+        WsgTheme.SelectButton(setupTab,setupPage.Visible);WsgTheme.SelectButton(settingsTab,settingsPage.Visible);
+        if(remember)try { File.WriteAllText(Path.Combine(Package,"Navigation.txt"),currentPage); } catch(IOException) {} catch(UnauthorizedAccessException) {}
+    }
+    bool RecoveryPending() { return Directory.Exists(Path.Combine(Target,NativeInstaller.TransactionName))||File.Exists(Path.Combine(Target,".StandaloneGlass-backup",".update.json")); }
+    bool CompleteInstallation() {
+        var receipt=CurrentReceipt();return receipt!=null&&receipt.files!=null&&!RecoveryPending()&&Array.TrueForAll(NativeInstaller.UsesAddon(receipt)?NativeInstaller.AddonPayload:Payload,n=>File.Exists(Path.Combine(Target,n)));
+    }
+    void RestorePage() {
+        string page="Settings";try { page=File.ReadAllText(Path.Combine(Package,"Navigation.txt")).Trim(); } catch(IOException) {} catch(UnauthorizedAccessException) {}
+        SelectPage(CompleteInstallation()?page:"Setup",false);
+    }
+    void FitWorkingArea(Rectangle work) {
+        Size=new Size(Math.Min(Width,work.Width),Math.Min(Height,work.Height));
+        Location=WindowPlacement.KeepVisible(new Rectangle(Location,Size),work,Size).Location;
+    }
+    void RefreshCompatibility() {
+        try {
+            string stamp=Target+"|"+AddonMode;
+            foreach(string name in new[]{"dxgi.dll","version.dll","winmm.dll","OptiScaler.dll"}) {
+                var file=new FileInfo(Path.Combine(Target,name));stamp+="|"+(file.Exists?file.Length+":"+file.LastWriteTimeUtc.Ticks:"missing");
+            }
+            if(stamp==compatibilityStamp)return;compatibilityStamp=stamp;
+            if(Target.Length==0||!Directory.Exists(Target)) { compatibility.Text="Choose the game folder to check graphics DLLs.";compatibilityHint.Text="";return; }
+            var result=NativeInstaller.DescribeGraphicsFiles(Target);compatibility.Text=result.Item1;
+            compatibilityHint.Text=result.Item2?NativeInstaller.CompatibilityAdvice(Target,AddonMode):"Only known filenames are checked; this is not a full compatibility test.";
+        } catch(Exception) { compatibility.Text="Could not inspect graphics DLLs in this folder.";compatibilityHint.Text="Use Help if MSFS fails to start."; }
     }
     void RememberWindow() {
-        footerLayoutKey=null;LayoutFooter();
+
         string path=Path.Combine(Package,"WindowPlacement.json");
         Load+=delegate {
             Rectangle saved;
             if(WindowPlacement.TryRead(path,out saved)) {
                 StartPosition=FormStartPosition.Manual;
                 // Keep the designed size, including when an earlier build saved resized bounds.
-                Location=WindowPlacement.KeepVisible(new Rectangle(saved.Location,Size),Screen.FromRectangle(saved).WorkingArea,Size).Location;
-            }
+                Location=saved.Location;FitWorkingArea(Screen.FromRectangle(saved).WorkingArea);
+            } else FitWorkingArea(Screen.FromControl(this).WorkingArea);
         };
         FormClosing+=delegate(object sender,FormClosingEventArgs e) {
             if(e.Cancel)return;
@@ -206,38 +296,59 @@ internal sealed class GlassWindow : Form
         catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
     }
     async void CheckUpstream() {
+        upstreamStarted=true;int request=++upstreamRequest;bool addon=AddonMode;
         try {
-            var releases=await Task.Run(()=>Tuple.Create(UpstreamRelease.Latest(),UpstreamRelease.List()));
-            if(!IsDisposed) {
+            var releases=await Task.Run(()=>Tuple.Create(UpstreamRelease.Latest(addon),UpstreamRelease.List(addon)));
+            if(!IsDisposed&&request==upstreamRequest&&addon==AddonMode) {
                 latestEngine=releases.Item1;
                 PopulateEngineChoices(releases.Item2);
                 upstreamUrl=UpstreamRelease.Repository+"/releases";
             }
-        } catch { if(!IsDisposed) { latestEngine=null;upstream.Text="Could not verify the latest DLL — retry later"; } }
+        } catch { if(!IsDisposed&&request==upstreamRequest) { latestEngine=null;upstream.Text="Could not verify the latest release — retry later"; } }
     }
     void PopulateEngineChoices(UpstreamRelease.Choice[] choices) {
         if(engineVersions.DroppedDown) { pendingEngineChoices=choices;return; }
-        NativeInstaller.Receipt receipt=null;
-        try { receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt)); } catch { }
+        var previous=engineVersions.SelectedItem as UpstreamRelease.Choice;
+        engineVersions.BeginUpdate();
         engineVersions.Items.Clear();
-        engineVersions.Items.Add(new UpstreamRelease.Choice { Id=0,Tag="v"+UpstreamRelease.Version,
-            IsLatest=latestEngine!=null&&latestEngine.Tag=="v"+UpstreamRelease.Version&&latestEngine.Sha256==UpstreamRelease.ZipHash });
-        int selected=0;
+        engineVersions.Items.Add(new UpstreamRelease.Choice { Id=-1,Addon=AddonMode,Tag="latest" });
+        engineVersions.Items.Add(new UpstreamRelease.Choice { Id=0,Tag="v"+UpstreamRelease.Version,Addon=AddonMode });
         foreach(var choice in choices) {
-            // The identical bundled release is already available offline; do not offer a duplicate download.
-            if(choice.Tag=="v"+UpstreamRelease.Version&&choice.Sha256==UpstreamRelease.ZipHash)continue;
-            choice.IsLatest=latestEngine!=null&&choice.Id==latestEngine.Id;
-            int index=engineVersions.Items.Add(choice);
-            if(choice.IsLatest)selected=index;
+            if(choice.Addon!=AddonMode||choice.Tag=="v"+UpstreamRelease.Version&&choice.Sha256==BundledHash)continue;
+            choice.IsLatest=latestEngine!=null&&choice.Id==latestEngine.Id;engineVersions.Items.Add(choice);
         }
-        engineVersions.SelectedIndex=selected;
-        string version=UpstreamRelease.Version,hash=UpstreamRelease.ZipHash;
-        if(receipt!=null&&!String.IsNullOrEmpty(receipt.engineVersion)) { version=receipt.engineVersion;hash=receipt.engineZipHash; }
-        var newest=choices.Length>0?choices[0]:null;
-        bool newer=false;
-        try { newer=newest!=null&&(StandaloneAppUpdate.ParseVersion(newest.Tag.Substring(1))>StandaloneAppUpdate.ParseVersion(version)||newest.Tag=="v"+version&&newest.Sha256!=hash); } catch { }
-        upstream.Text=choices.Length==0 ? "No verified releases found" : newer ? "New official DLL available" : "Official DLL is up to date";
+        int selected=0;
+        if(previous!=null&&previous.Addon==AddonMode)for(int i=0;i<engineVersions.Items.Count;i++) {
+            var item=(UpstreamRelease.Choice)engineVersions.Items[i];if(item.Id==previous.Id&&item.Tag==previous.Tag) { selected=i;break; }
+        }
+        engineVersions.SelectedIndex=selected;engineVersions.EndUpdate();
+        upstream.Text=latestEngine==null?"Latest release not verified. Bundled / offline versions remain available.":"Latest official fix: "+latestEngine.Tag+" — verified release checksums";
         RefreshState();
+    }
+    void ShowHelp() {
+        using(var dialog=new Form { Text="Glass Cockpit Refresh — Help",Font=Font,ClientSize=new Size(620,450),FormBorderStyle=FormBorderStyle.FixedDialog,MaximizeBox=false,MinimizeBox=false,ShowInTaskbar=false,StartPosition=FormStartPosition.CenterParent }) {
+            var layout=Column();layout.Padding=new Padding(18);var scroll=new Panel { Dock=DockStyle.Fill,AutoScroll=true,Tag="surface" };scroll.Controls.Add(layout);dialog.Controls.Add(scroll);
+            Row(layout,Caption("Using the fix"));
+            Row(layout,new WsgLabel { AutoSize=true,MaximumSize=new Size(560,0),Text=@"Standalone settings apply during upscaling. Use the recorded shortcut while MSFS has focus to open the original settings window, including green tint and diagnostics.
+
+For the ReShade add-on, edit here with MSFS closed. During a flight, use the Glass Cockpit DLSS Fix panel in ReShade." });
+            Row(layout,Caption("MSFS will not start"));
+            Row(layout,new WsgLabel { AutoSize=true,MaximumSize=new Size(560,0),Text="Uninstall through this app, then test the same official version and mode installed manually, following IFreemz's instructions." });
+            Row(layout,new WsgLabel { AutoSize=true,MaximumSize=new Size(560,0),Text="Manual installation works? Contact siglr / WSG for installer, update and app issues. Manual installation also fails? Contact IFreemz for graphics/fix issues with glass-cockpit-dlss-fix.log from the game folder." });
+            var support=new FlowLayoutPanel { AutoSize=true,WrapContents=true };
+            foreach(var item in new[]{Tuple.Create("Installer support","https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh/issues"),Tuple.Create("Graphics / fix support",UpstreamRelease.Repository+"/issues")}) {
+                var link=new LinkLabel { Text=item.Item1,AutoSize=true,Margin=new Padding(0,6,20,6) };string url=item.Item2;link.LinkClicked+=delegate { OpenSupport(url); };support.Controls.Add(link);
+            }
+            Row(layout,support);
+            Row(layout,Caption("Other graphics tools"));
+            Row(layout,new WsgLabel { AutoSize=true,MaximumSize=new Size(560,0),Text="Use one copy of the glass fix. ReShade with add-on support must be installed separately for add-on mode. Custom ReShade add-on folders require manual installation in this test version. Other graphics helpers may interact even when their DLL filenames differ; this is a possibility, not proof of a conflict. Nothing is removed or renamed automatically." });
+            Row(layout,new WsgLabel { AutoSize=true,MaximumSize=new Size(560,0),Text="A user reported a startup failure with DLSS Enabler 4.9.0 as version.dll and the standalone glass fix. IFreemz reports an alternative working: MFG Unlocker renamed to winmm.dll with his dxgi.dll, without ReShade or OptiScaler. With OptiScaler, use the unlocker as an OptiScaler plugin, as its README describes. His test crashed when the winmm.dll method was used alongside OptiScaler. These reports do not guarantee results on every setup." });
+            var mfgLink=new LinkLabel { Text="MFG Unlocker installation instructions",AutoSize=true };mfgLink.LinkClicked+=delegate { OpenSupport("https://github.com/dashdogy/MFG-Unlocker#install"); };Row(layout,mfgLink);
+
+            var close=new WsgButton { Text="Close",Height=34,DialogResult=DialogResult.OK };Row(layout,close,42);dialog.CancelButton=close;
+            dialog.BackColor=WsgTheme.Background;WsgTheme.Apply(dialog);dialog.HandleCreated+=delegate { WsgTheme.TitleBar(dialog); };
+            dialog.ShowDialog(this);
+        }
     }
     void RefreshAppearance() {
         BackColor=WsgTheme.Background; ForeColor=WsgTheme.Text;
@@ -246,7 +357,7 @@ internal sealed class GlassWindow : Form
         PaintStatus();
         WsgTheme.SelectButton(darkTheme,!WsgTheme.Light); WsgTheme.SelectButton(lightTheme,WsgTheme.Light);
         if(IsHandleCreated)WsgTheme.TitleBar(this);
-        Invalidate(true);
+        SelectPage(currentPage,false);Invalidate(true);
     }
     void PaintStatus() {
         string value=status.Text;
@@ -264,31 +375,46 @@ internal sealed class GlassWindow : Form
         bool present=found && File.Exists(Receipt);
         bool other=found && File.Exists(Path.Combine(Target,".MyOwnFGVRMod-install.json"));
         bool legacy=present && File.Exists(Path.Combine(Target,"StandaloneGlassGraphics.dll")) && File.Exists(Path.Combine(Target,"StandaloneGlass.ini"));
-        bool complete=present && Array.TrueForAll(Payload,n=>File.Exists(Path.Combine(Target,n)));
+        var installed=CurrentReceipt();
+        bool installedAddon=NativeInstaller.UsesAddon(installed);
+        bool complete=found&&CompleteInstallation();
+        bool switching=complete&&installedAddon!=AddonMode;
+        installedSummary.Text=complete?"Installed: "+(installedAddon?"ReShade add-on":"Standalone DLL")+" v"+(installed.engineVersion??"unknown"):present?"Installed: incomplete — recovery needed":"Installed: not installed";
+        installedSummary.ForeColor=WsgTheme.Text;
+        modeHint.Text=AddonMode?"Requires ReShade with add-on support, installed separately.":"For users who do not use ReShade.";
         bool knownSettings=false;
         if(complete)try {
             var receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
             knownSettings=receipt.engineVersion=="1.0.0"||receipt.engineVersion=="1.0.1";
         } catch { }
-        note.Text=complete&&!knownSettings ? "Settings format not verified — use the original in-sim window." : "";
+        bool addonRunning=installedAddon&&SimulatorRunning();
+        note.Text=addonRunning?"MSFS is running — change add-on settings in ReShade.":complete&&!knownSettings ? "Settings format not verified — use the original in-sim window." : "";
         LayoutFooter();
-        bool recovery=found && (Directory.Exists(Path.Combine(Target,NativeInstaller.TransactionName)) || File.Exists(Path.Combine(Target,".StandaloneGlass-backup",".update.json")));
+        bool recovery=found&&RecoveryPending();
         string installedStatus="";
         bool needsUpdate=false;
         if(recovery) { needsUpdate=true; installedStatus="Update interrupted - close MSFS, then click Update to recover"; }
         else if(complete) needsUpdate=NeedsInstalledUpdate(out installedStatus);
         else if(legacy) { needsUpdate=true; installedStatus="Update available — migrate to the official DLL; keep settings"; }
-        if(complete&&!needsUpdate&&latestEngine!=null&&(installedStatus.StartsWith("Installed -")||installedStatus.StartsWith("Installed official"))) {
+        if(complete&&!switching&&!needsUpdate&&latestEngine!=null&&(installedStatus.StartsWith("Installed -")||installedStatus.StartsWith("Installed official"))) {
             try {
                 var receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
                 if(receipt.engineZipHash!=latestEngine.Sha256) { needsUpdate=true;installedStatus="Latest official DLL "+latestEngine.Tag+" available — click Update"; }
             } catch { }
         }
-        install.Enabled=!busy && found && (!present || needsUpdate) && !other; uninstall.Enabled=!busy && (present || recovery);
-        install.Text=present || recovery ? "Update" : "Install";
-        browse.Enabled=!busy; enabled.Enabled=!busy && complete && knownSettings;
-        engineVersions.Enabled=!busy;applyEngine.Enabled=!busy&&found&&!other&&SelectedEngineNeedsInstall();
-        glass.RefreshValues(!busy && complete && knownSettings);
+        if(switching&&!installedStatus.Contains("changed")&&!installedStatus.StartsWith("Cannot")) { needsUpdate=true;installedStatus="Ready to switch mode — settings will be kept"; }
+        bool verified=installedStatus.IndexOf("changed",StringComparison.OrdinalIgnoreCase)<0&&!installedStatus.StartsWith("Cannot")&&!installedStatus.StartsWith("Package");
+        bool canInstall=!busy&&found&&!other&&(!present||recovery||legacy||complete&&verified);
+        bool selectionNeeds=FollowLatest?latestEngine!=null&&(!present||needsUpdate||switching||recovery||legacy):SelectedEngineNeedsInstall()||recovery||legacy;
+        install.Enabled=canInstall&&selectionNeeds;uninstall.Enabled=!busy&&(present||recovery);
+        install.Text=!present?"Install":switching?"Switch mode":FollowLatest?"Update":"Install selected version";
+        installMode.Enabled=!busy;
+        browse.Enabled=!busy; enabled.Enabled=!busy && complete && knownSettings&&!addonRunning;
+        engineVersions.Enabled=!busy;
+        glass.ReShadeMode=complete?installedAddon:AddonMode;
+        emptySettings.Visible=!complete;enabled.Visible=complete;glass.Visible=complete;note.Visible=complete&&note.Text.Length>0;
+        glass.RefreshValues(!busy && complete && knownSettings&&!addonRunning,complete&&knownSettings);
+        RefreshCompatibility();
         refreshing=true; enabled.Checked=complete && GetPrivateProfileInt("overlay","enabled",1,Ini)!=0; refreshing=false;
         if(!busy) status.Text=other ? "Remove the conflicting mod using its own installer first."
             : complete || recovery || legacy ? installedStatus : present ? "Installation incomplete - use Uninstall to recover"
@@ -304,18 +430,24 @@ internal sealed class GlassWindow : Form
         string hash=StandaloneAppUpdate.HashFile(path);
         fileHashes[path]=Tuple.Create(stamp,hash);return hash;
     }
+    NativeInstaller.Receipt CurrentReceipt() {
+        try { return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt)); }
+        catch { return null; }
+    }
     bool SelectedEngineNeedsInstall() {
         var choice=engineVersions.SelectedItem as UpstreamRelease.Choice;
-        if(choice==null)return false;
+        if(choice==null||choice.Id==-1)return false;
         if(!File.Exists(Receipt))return true;
         try {
             var json=new System.Web.Script.Serialization.JavaScriptSerializer();
             var receipt=json.Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
-            if(receipt.files==null||!receipt.files.ContainsKey("dxgi.dll"))return false;
-            string dll=Path.Combine(Target,"dxgi.dll");
-            if(!File.Exists(dll)||FileHash(dll)!=receipt.files["dxgi.dll"])return false;
+            string installedName=NativeInstaller.UsesAddon(receipt)?UpstreamRelease.AddonName:"dxgi.dll";
+            if(receipt.files==null||!receipt.files.ContainsKey(installedName))return false;
+            string dll=Path.Combine(Target,installedName);
+            if(!File.Exists(dll)||FileHash(dll)!=receipt.files[installedName])return false;
+            if(NativeInstaller.UsesAddon(receipt)!=AddonMode)return true;
             if(!receipt.files.ContainsKey("glass-cockpit-dlss-fix.ini"))return true;
-            if(choice.Id==0)return FileHash(dll)!=FileHash(Path.Combine(Package,"dxgi.dll"));
+            if(choice.Id==0)return FileHash(dll)!=FileHash(Path.Combine(Package,BinaryName));
             return receipt.engineZipHash!=choice.Sha256;
         } catch { return false; }
     }
@@ -328,8 +460,13 @@ internal sealed class GlassWindow : Form
             var payload = json.Deserialize<System.Collections.Generic.Dictionary<string, object>>(File.ReadAllText(Path.Combine(Package,"payload.json")));
             var installed = (System.Collections.Generic.Dictionary<string, object>)receipt["files"];
             var available = (System.Collections.Generic.Dictionary<string, object>)payload["files"];
+            bool addon=installed.ContainsKey(UpstreamRelease.AddonName);
+            if(addon) {
+                var inventory=StandaloneAppUpdate.ReadInventory(Package,false);
+                available[UpstreamRelease.AddonName]=inventory.files[UpstreamRelease.AddonName];
+            }
             bool different=false;
-            foreach(string name in new[] { "dxgi.dll" }) {
+            foreach(string name in new[] { addon?UpstreamRelease.AddonName:"dxgi.dll" }) {
                 if(!installed.ContainsKey(name) || !available.ContainsKey(name))return false;
                 string actual=FileHash(Path.Combine(Target,name));
                 if(!String.Equals(actual,Convert.ToString(installed[name]),StringComparison.OrdinalIgnoreCase)) {
@@ -343,7 +480,7 @@ internal sealed class GlassWindow : Form
                 if(installed.ContainsKey(name)&&receipt.ContainsKey("engineReleaseId")&&Convert.ToInt64(receipt["engineReleaseId"])>0)different=false;
             }
             message=different ? "Mod update available - close MSFS, then click Update" : "Installed - files are up to date";
-            if(receipt.ContainsKey("engineReleaseId")&&Convert.ToInt64(receipt["engineReleaseId"])>0)message="Installed official DLL v"+Convert.ToString(receipt["engineVersion"])+" — selected version kept";
+            if(receipt.ContainsKey("engineReleaseId")&&Convert.ToInt64(receipt["engineReleaseId"])>0)message="Installed official "+(addon?"add-on":"DLL")+" v"+Convert.ToString(receipt["engineVersion"])+" — selected version kept";
             return different;
         } catch { return false; }
     }
@@ -356,15 +493,16 @@ internal sealed class GlassWindow : Form
             string saved=Path.Combine(Package,"SimulatorDirectory.txt");
             if(File.Exists(saved)) { var p=File.ReadAllText(saved).Trim(); if(File.Exists(Path.Combine(p,"FlightSimulator2024.exe"))) folder.Text=p; }
             if(Target.Length==0 && detected!=null) folder.Text=detected;
-        } finally { busy=false; RefreshState(); timer.Start(); }
+        } finally { busy=false; RefreshState();RestorePage();timer.Start(); }
     }
     async Task SetupSelectedEngine() {
         var choice=engineVersions.SelectedItem as UpstreamRelease.Choice;
         if(choice==null)return;
-        foreach(var process in Process.GetProcessesByName("FlightSimulator2024")) { process.Dispose();ParentDialogPosition.Show(this,"Close MSFS before changing the installed DLL.",Text);return; }
+        if(choice.Id==-1) { await SetupLatestEngine();return; }
+        foreach(var process in Process.GetProcessesByName("FlightSimulator2024")) { process.Dispose();ParentDialogPosition.Show(this,"Close MSFS before changing the installed fix.",Text);return; }
         string version=choice.Id==0?UpstreamRelease.Version:choice.Tag.Substring(1);
         if(version=="1.0.0"||(latestEngine!=null&&StandaloneAppUpdate.ParseVersion(version)<StandaloneAppUpdate.ParseVersion(latestEngine.Tag.Substring(1)))) {
-            if(ParentDialogPosition.Show(this,"Install older official DLL v"+version+" for rollback?\n\nOlder versions can contain known crashes. Version 1.0.0 can crash when loading FSLabs aircraft. The normal Install/Update button uses the latest release.",Text,MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;
+            if(ParentDialogPosition.Show(this,"Install older official fix v"+version+" for rollback?\n\nOlder versions can contain known crashes. Version 1.0.0 can crash when loading FSLabs aircraft. The normal Install/Update button uses the latest release.",Text,MessageBoxButtons.YesNo,MessageBoxIcon.Warning)!=DialogResult.Yes)return;
         }
         if(choice.Id==0) { await Setup(false,null,true);return; }
         busy=true;RefreshState();status.Text="Downloading and verifying "+choice.Tag+"…";
@@ -375,12 +513,13 @@ internal sealed class GlassWindow : Form
         if(selected!=null)await Setup(false,selected,true);
     }
     async Task SetupLatestEngine() {
-        foreach(var process in Process.GetProcessesByName("FlightSimulator2024")) { process.Dispose();ParentDialogPosition.Show(this,"Close MSFS before changing the installed DLL.",Text);return; }
+        foreach(var process in Process.GetProcessesByName("FlightSimulator2024")) { process.Dispose();ParentDialogPosition.Show(this,"Close MSFS before changing the installed fix.",Text);return; }
         busy=true;RefreshState();status.Text="Checking latest release and its SHA-256 checksums…";
         UpstreamRelease.Prepared selected=null;
         try {
-            NativeInstaller.CheckReShadeConflicts(Target);
-            selected=await Task.Run(()=> { var latest=UpstreamRelease.Latest();return UpstreamRelease.Load(Package,latest.Id,true,latest); });
+            NativeInstaller.CheckReShadeConflicts(Target,AddonMode,CurrentReceipt());
+            bool addon=AddonMode;
+            selected=await Task.Run(()=> { var latest=UpstreamRelease.Latest(addon);return UpstreamRelease.Load(Package,latest.Id,true,latest); });
         } catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
         finally { busy=false;RefreshState(); }
         if(selected!=null)await Setup(false,selected,true);
@@ -389,31 +528,171 @@ internal sealed class GlassWindow : Form
     {
         if(!remove) { RefreshState(); if(!force&&!install.Enabled)return; }
         bool replace=false;
+        bool addon=AddonMode;
         if(!remove) {
             NativeInstaller.Receipt old=null;
             if(File.Exists(Receipt))try { old=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt)); } catch { }
-            string conflicts=String.Join(", ",Array.FindAll(Payload,n=>File.Exists(Path.Combine(Target,n))&&(old==null||old.files==null||!old.files.ContainsKey(n))));
+            if(old!=null&&NativeInstaller.UsesAddon(old)!=addon) {
+                if(ParentDialogPosition.Show(this,"Switch to "+(addon?"ReShade add-on":"standalone DLL")+"?\n\nThe managed copy of the other mode will be removed. Your glass settings and original backups will be kept."+(addon?"\n\nReShade with add-on support must already be installed separately.":""),Text,MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
+            }
+            string conflicts=String.Join(", ",Array.FindAll(addon?NativeInstaller.AddonPayload:Payload,n=>File.Exists(Path.Combine(Target,n))&&(old==null||old.files==null||!old.files.ContainsKey(n))));
             if(conflicts.Length>0) {
                 if(ParentDialogPosition.Show(this,"Back up and replace these existing mod files?\n\n"+conflicts+"\n\nUninstall restores the backups.",Text,MessageBoxButtons.YesNo)!=DialogResult.Yes) return;
                 replace=true;
             }
         }
         busy=true; RefreshState(); status.Text=remove ? "Uninstalling...":"Installing...";
-        string target=Target;
+        string target=Target;bool succeeded=false;
         try {
             bool elevate=false;
             try {
-                string message=await Task.Run(()=>NativeInstaller.Run(Package,target,remove,replace,null,selected));
-                ParentDialogPosition.Show(this,message,Text,MessageBoxButtons.OK,MessageBoxIcon.Information);
+                string message=await Task.Run(()=>NativeInstaller.Run(Package,target,remove,replace,null,selected,addon));
+                succeeded=true;ParentDialogPosition.Show(this,message,Text,MessageBoxButtons.OK,MessageBoxIcon.Information);
             } catch(UnauthorizedAccessException) { elevate=true; }
             if(elevate) {
                 if(ParentDialogPosition.Show(this,"Windows requires administrator permission to change files in this folder. Continue?",Text,MessageBoxButtons.YesNo)!=DialogResult.Yes)return;
-                var p=new ProcessStartInfo(Application.ExecutablePath,(remove ? "--uninstall ":"--install ")+"\""+target.TrimEnd('\\')+"\""+(replace ? " --replace":"")+(remove?"":selected==null?" --bundled":" --engine "+selected.Release.Id)) {
+                var p=new ProcessStartInfo(Application.ExecutablePath,(remove ? "--uninstall ":"--install ")+"\""+target.TrimEnd('\\')+"\""+(replace ? " --replace":"")+(remove?"":(addon?" --addon":"")+(selected==null?" --bundled":" --engine "+selected.Release.Id))) {
                     UseShellExecute=true,Verb="runas",WorkingDirectory=Package };
-                using(var child=Process.Start(p)) await Task.Run(()=>child.WaitForExit());
+                using(var child=Process.Start(p)) { await Task.Run(()=>child.WaitForExit());succeeded=child.ExitCode==0; }
             }
         } catch(Exception e) { ParentDialogPosition.Show(this,e.Message,Text); }
-        finally { busy=false; RefreshState(); }
+        finally { busy=false; RefreshState();if(succeeded)SelectPage(remove?"Setup":"Settings",true); }
+    }
+    static void RememberFonts(Control control,System.Collections.Generic.Dictionary<Control,Font> fonts) {
+        fonts[control]=control.Font;foreach(Control child in control.Controls)RememberFonts(child,fonts);
+    }
+    static void ApplyTestFonts(System.Collections.Generic.Dictionary<Control,Font> fonts,float scale) {
+        foreach(var item in fonts)item.Key.Font=new Font(item.Value.FontFamily,item.Value.Size*scale,item.Value.Style);
+    }
+    static void Check(bool condition,string message) { if(!condition)throw new Exception(message); }
+    void Preview(string path) {
+        Application.DoEvents();using(var b=new Bitmap(Width,Height)) { DrawToBitmap(b,new Rectangle(Point.Empty,Size));b.Save(path); }
+    }
+    void CheckHeaderLayout() {
+        foreach(Control button in new Control[]{darkTheme,lightTheme}) {
+            Check(button.ClientSize.Height>=TextRenderer.MeasureText(button.Text,button.Font).Height+8,"Theme button is too short for its text");
+            Rectangle bounds=button.RectangleToScreen(button.ClientRectangle);
+            for(Control parent=button.Parent;parent!=null;parent=parent.Parent)
+                Check(parent.RectangleToScreen(parent.ClientRectangle).Contains(bounds),"Theme button clipped by header layout");
+        }
+        Check(darkTheme.Top==lightTheme.Top&&darkTheme.Height==lightTheme.Height,"Theme buttons are not aligned");
+        foreach(Control line in new Control[]{credit,appUpdate}) {
+            Check(line.Height>=TextRenderer.MeasureText("Agyp",line.Font).Height+4,"Footer text or underline can be clipped");
+            Rectangle bounds=line.RectangleToScreen(line.ClientRectangle);
+            for(Control parent=line.Parent;parent!=null;parent=parent.Parent)
+                Check(parent.RectangleToScreen(parent.ClientRectangle).Contains(bounds),"Footer line clipped by parent");
+        }
+    }
+    void CheckDropdownLayout() {
+        foreach(ComboBox dropdown in new[]{installMode,engineVersions}) {
+            Check(dropdown.Height>=dropdown.PreferredHeight,"Dropdown is shorter than its native preferred height");
+            Rectangle bounds=dropdown.RectangleToScreen(dropdown.ClientRectangle);
+            // Scroll viewports may intentionally hide a row; its own layout containers must not.
+            for(Control parent=dropdown.Parent;parent!=setupScroll&&parent!=null;parent=parent.Parent)
+                Check(parent.RectangleToScreen(parent.ClientRectangle).Contains(bounds),dropdown.AccessibleName+" dropdown "+bounds+" clipped by "+parent.GetType().Name+" "+parent.RectangleToScreen(parent.ClientRectangle)+"; font="+dropdown.Font.Size+", preferred="+dropdown.PreferredHeight);
+            var table=dropdown.Parent as TableLayoutPanel;
+            if(table!=null) {
+                int row=table.GetRow(dropdown);
+                Check(table.GetRowHeights()[row]>=dropdown.Height+dropdown.Margin.Vertical,"Dropdown exceeds its allocated table row");
+            }
+        }
+    }
+    int TestPages(string target,string preview,bool addon) {
+        Check(File.Exists(Path.Combine(target,"CONTROL-TEST-ONLY")),"Missing fixture marker");
+        folder.Text=target;RefreshState();RestorePage();
+        latestEngine=new UpstreamRelease.Choice { Id=416640528,Tag="v1.0.1",Sha256=addon?UpstreamRelease.AddonHash:UpstreamRelease.ZipHash,Addon=addon };
+        PopulateEngineChoices(new[]{latestEngine});
+        StartPosition=FormStartPosition.Manual;Location=new Point(-10000,-10000);ShowInTaskbar=false;Show();Application.DoEvents();
+        SelectPage("Settings",false);RefreshState();Preview(preview+".initial.png");
+        Check(AddonMode==addon&&glass.ReShadeMode==addon,"Installed mode detection");
+        Check(!install.Enabled&&uninstall.Enabled,"Matching installation should not offer replacement");
+        Check(FollowLatest&&engineVersions.SelectedIndex==0,"Latest is the default selection");
+        Check(glass.Enabled==!(addon&&SimulatorRunning()),"Running add-on editing guard");
+        byte[] originalIni=File.ReadAllBytes(Ini),receipt=File.ReadAllBytes(Receipt);
+        // Invalid receipts and interrupted transactions must stay on Setup without a crash.
+        try {
+            File.WriteAllText(Receipt,"invalid receipt");RefreshState();RestorePage();
+            Check(currentPage=="Setup"&&!glass.Visible&&!install.Enabled,"Invalid receipt must offer recovery, not settings");
+            File.WriteAllBytes(Receipt,receipt);
+            string journal=Path.Combine(Target,NativeInstaller.TransactionName);Directory.CreateDirectory(journal);
+            try { RefreshState();RestorePage();Check(currentPage=="Setup"&&!glass.Visible,"Pending recovery must start on Setup"); }
+            finally { Directory.Delete(journal); }
+        } finally { File.WriteAllBytes(Receipt,receipt);RefreshState(); }
+        Size fixedSize=Size;
+        foreach(string page in new[]{"Setup","Settings","Setup"}) {
+            SelectPage(page,true);RefreshState();Check(currentPage==page,"Page unexpectedly changed");
+            Check(Size==fixedSize,"Navigation resized the frame");
+        }
+        using(var reopened=new GlassWindow()) { reopened.folder.Text=target;reopened.RestorePage();Check(reopened.currentPage=="Setup","Remembered page did not restore"); }
+        Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"Navigation wrote simulator settings");
+        SelectPage("Setup",false);engineVersions.Focus();engineVersions.DroppedDown=true;Application.DoEvents();
+        Check(engineVersions.DroppedDown,"Version dropdown did not open");
+        for(int tick=0;tick<3;tick++) { RefreshState();Application.DoEvents();Check(engineVersions.DroppedDown,"Refresh closed dropdown"); }
+        int items=engineVersions.Items.Count;
+        var future=new UpstreamRelease.Choice { Id=42,Tag="v1.9.0",Sha256=new string('b',64),Addon=addon };
+        PopulateEngineChoices(new[]{latestEngine,future});appUpdate.Text="App update unavailable; current version kept.";Application.DoEvents();
+        Check(engineVersions.Items.Count==items&&engineVersions.DroppedDown&&Size==fixedSize,"Background check changed open selection or frame");
+        engineVersions.DroppedDown=false;
+        var pendingWait=Stopwatch.StartNew();
+        while(pendingEngineChoices!=null&&pendingWait.ElapsedMilliseconds<1000) { Application.DoEvents();System.Threading.Thread.Sleep(5); }
+        Check(pendingEngineChoices==null&&engineVersions.Items.Count==3&&FollowLatest,"Deferred choices lost selection");
+        engineVersions.SelectedIndex=2;RefreshState();Check(install.Enabled&&install.Text=="Install selected version","Explicit version selection action");
+        Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"Version choice wrote settings");
+        engineVersions.SelectedIndex=0;
+        installMode.SelectedIndex=addon?0:1;engineVersions.SelectedIndex=1;RefreshState();
+        Check(install.Enabled&&install.Text=="Switch mode","Mode switch action");
+        SelectPage("Settings",false);Check(glass.ReShadeMode==addon,"Pending selection must not change installed settings mode");
+        installMode.SelectedIndex=addon?1:0;engineVersions.SelectedIndex=1;RefreshState();Check(!install.Enabled,"Same bundled version needs no replacement");
+        // Corruption blocks replacement and leaves recovery available.
+        string binary=Path.Combine(target,addon?UpstreamRelease.AddonName:"dxgi.dll");byte[] bytes=File.ReadAllBytes(binary);
+        try { File.AppendAllText(binary,"modified");fileHashes.Clear();RefreshState();Check(!install.Enabled&&uninstall.Enabled&&status.Text.Contains("changed"),"Modified binary guard"); }
+        finally { File.WriteAllBytes(binary,bytes);fileHashes.Clear();RefreshState(); }
+        if(!addon) { SelectPage("Settings",false);glass.SelfTest(preview); }
+        foreach(bool light in new[]{false,true}) {
+            SelectAppearance(light);RefreshState();
+            foreach(string page in new[]{"Setup","Settings"}) { SelectPage(page,false);Preview(preview+"."+(light?"light":"dark")+"-"+page+".png"); }
+            if(!addon)glass.ReviewLayout(preview+(light?".light":".dark"));
+        }
+        Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"UI checks changed settings");
+        try {
+            File.Delete(Receipt);RefreshState();RestorePage();Check(currentPage=="Setup","Missing installation starts on Setup");
+            engineVersions.SelectedIndex=1;RefreshState();Check(install.Enabled&&!uninstall.Enabled,"Bundled installation should work offline");
+            SelectPage("Settings",false);Check(emptySettings.Visible&&!glass.Visible&&!enabled.Visible,"Empty settings state");
+            Preview(preview+".uninstalled.png");
+        } finally { File.WriteAllBytes(Receipt,receipt);RefreshState(); }
+        foreach(float scale in new[]{1f,1.25f,1.5f,2f})using(var scaled=new GlassWindow()) {
+            scaled.folder.Text=target;scaled.installMode.SelectedIndex=addon?1:0;scaled.RefreshState();scaled.StartPosition=FormStartPosition.Manual;scaled.Location=new Point(-10000,-10000);scaled.ShowInTaskbar=false;scaled.Show();
+            scaled.Scale(new SizeF(scale,scale));scaled.FitWorkingArea(new Rectangle(0,0,1920,1040));scaled.Location=new Point(-10000,-10000);
+            Check(scaled.Height<=1040&&scaled.Width<=1920&&scaled.FormBorderStyle==FormBorderStyle.FixedDialog,"Scaled frame must fit without becoming resizable");
+            Size scaledSize=scaled.Size;
+            var fonts=new System.Collections.Generic.Dictionary<Control,Font>();RememberFonts(scaled,fonts);
+            foreach(bool light in new[]{false,true})foreach(string page in new[]{"Setup","Settings"}) {
+                scaled.SelectAppearance(light);ApplyTestFonts(fonts,scale);scaled.SelectPage(page,false);scaled.RefreshState();scaled.Preview(preview+"."+page+"-"+(light?"light":"dark")+"-"+(int)(scale*100)+".png");
+                scaled.CheckHeaderLayout();if(page=="Setup")scaled.CheckDropdownLayout();
+                if(page=="Setup")foreach(Control button in new Control[]{scaled.install,scaled.uninstall}) {
+                    Rectangle bounds=button.RectangleToScreen(button.ClientRectangle);
+                    for(Control parent=button.Parent;parent!=null;parent=parent.Parent)
+                        Check(parent.RectangleToScreen(parent.ClientRectangle).Contains(bounds),"Setup action is clipped");
+                }
+                Check(scaled.Size==scaledSize,"Status changed frame size");
+                var view=page=="Setup"?scaled.setupScroll:scaled.settingsPage;
+                Check(!view.HorizontalScroll.Visible,"Horizontal scrolling is not acceptable");
+                if(scale==1f&&page=="Setup"&&!addon)Check(!view.VerticalScroll.Visible,"Normal standalone Setup should fit without scrolling");
+            }
+            scaled.SelectPage("Settings",false);if(scaled.glass.Enabled)scaled.glass.ReviewLayout(preview+".scale-"+(int)(scale*100));
+            if(scale==2f) {
+                scaled.FitWorkingArea(new Rectangle(0,0,1280,720));scaled.Location=new Point(-10000,-10000);
+                foreach(string page in new[]{"Setup","Settings"}) {
+                    scaled.SelectPage(page,false);scaled.Preview(preview+".small-screen-"+page+".png");scaled.CheckHeaderLayout();if(page=="Setup")scaled.CheckDropdownLayout();
+                    Check(!(page=="Setup"?scaled.setupScroll:scaled.settingsPage).HorizontalScroll.Visible,"Small screen requires horizontal scrolling");
+                }
+                if(scaled.glass.Enabled)scaled.glass.ReviewLayout(preview+".small-screen");
+            }
+        }
+        string placement=Path.Combine(Package,"WindowPlacement.json");Rectangle saved=new Rectangle(80,90,820,820),loaded;
+        WindowPlacement.Save(placement,saved);Check(WindowPlacement.TryRead(placement,out loaded)&&saved==loaded,"Position round-trip");
+        Check(ParentDialogPosition.Center(new Rectangle(300,200,660,680),new Size(400,260),new Rectangle(0,0,1920,1080))==new Point(430,410),"Centered dialog regression");
+        SelectPage("Settings",true);return 0;
     }
     [STAThread] static int Main(string[] args)
     {
@@ -421,191 +700,39 @@ internal sealed class GlassWindow : Form
         try {
             if(args.Length>0 && (args[0]=="--apply-app-update" || args[0]=="--recover-app-update")) return StandaloneAppUpdate.Helper(args);
             if(args.Length>=2 && (args[0]=="--install" || args[0]=="--uninstall")) {
-                bool replace=false,bundled=false;long engineId=0;
+                bool replace=false,bundled=false,addon=false;long engineId=0;
                 for(int i=2;i<args.Length;i++) {
                     if(args[i]=="--replace"&&!replace)replace=true;
                     else if(args[i]=="--bundled"&&!bundled)bundled=true;
+                    else if(args[i]=="--addon"&&!addon)addon=true;
                     else if(args[i]=="--engine"&&engineId==0&&i+1<args.Length&&Int64.TryParse(args[++i],out engineId)&&engineId>0) {}
                     else throw new ArgumentException("Invalid installer arguments.");
                 }
-                if((args[0]=="--uninstall"&&(engineId!=0||bundled))||(engineId!=0&&bundled))throw new ArgumentException("Invalid engine selection.");
+                if((args[0]=="--uninstall"&&(engineId!=0||bundled||addon))||(engineId!=0&&bundled))throw new ArgumentException("Invalid engine selection.");
                 UpstreamRelease.Prepared selected=null;
-                if(engineId!=0)selected=UpstreamRelease.Load(Package,engineId,false);
-                else if(args[0]=="--install"&&!bundled) { var latest=UpstreamRelease.Latest();selected=UpstreamRelease.Load(Package,latest.Id,true,latest); }
-                string message=NativeInstaller.Run(Package,args[1],args[0]=="--uninstall",replace,null,selected);
+                if(engineId!=0)selected=UpstreamRelease.Load(Package,engineId,false,null,addon);
+                else if(args[0]=="--install"&&!bundled) { var latest=UpstreamRelease.Latest(addon);selected=UpstreamRelease.Load(Package,latest.Id,true,latest); }
+                string message=NativeInstaller.Run(Package,args[1],args[0]=="--uninstall",replace,null,selected,addon);
                 MessageBox.Show(message,"Standalone glass cockpit",MessageBoxButtons.OK,MessageBoxIcon.Information);return 0;
             }
             using(var gate=StandaloneAppUpdate.Enter(Package)) {
                 if(gate==null) { MessageBox.Show("The standalone app is already open or updating.","Standalone glass cockpit");return 0; }
                 string recoveryError=null;
-                if(Array.IndexOf(args,"--self-test")<0) {
+                if(Array.IndexOf(args,"--self-test")<0&&Array.IndexOf(args,"--self-test-addon")<0) {
                     try { if(StandaloneAppUpdate.Startup(Package))return 0; }
                     catch { recoveryError="App update recovery needs attention. Extract the complete ZIP again."; }
                 }
             using(var form=new GlassWindow()) {
-                if(args.Length==3 && args[0]=="--self-test") {
-                    if(!File.Exists(Path.Combine(args[1],"CONTROL-TEST-ONLY"))) throw new Exception("Missing fixture marker");
-                    if(ParentDialogPosition.Center(new Rectangle(300,200,660,680),new Size(400,260),new Rectangle(0,0,1920,1080))!=new Point(430,410))
-                        throw new Exception("Dialog must center over its parent, not the desktop");
-                    if(ParentDialogPosition.Center(new Rectangle(-1900,20,660,680),new Size(800,900),new Rectangle(-1920,0,1920,1080))!=new Point(-1920,0))
-                        throw new Exception("Dialog must stay visible on a secondary monitor near its edge");
-                    var detected=SimulatorDiscovery.Find(new[]{args[1]});
-                    if(detected!=args[1])throw new Exception("Discovery failed: "+detected);
-                    form.folder.Text=args[1]; form.RefreshState();
-                    if(!form.enabled.Enabled || form.install.Enabled || form.install.Text != "Update" || !form.uninstall.Enabled) throw new Exception("Installed controls failed");
-                    if(form.applyEngine.Enabled)throw new Exception("Matching bundled DLL must not offer replacement");
-                    if(form.status.Text!="Installed - files are up to date")throw new Exception("Matching DLLs should not require an update");
-                    string manifestPath=Path.Combine(Package,"payload.json"),manifestText=File.ReadAllText(manifestPath);
-                    string packageDll=Path.Combine(Package,"dxgi.dll"),installedDll=Path.Combine(form.Target,"dxgi.dll");
-                    byte[] packageBytes=File.ReadAllBytes(packageDll),installedBytes=File.ReadAllBytes(installedDll),receiptBytes=File.ReadAllBytes(form.Receipt);
-                    try {
-                        var serializer=new System.Web.Script.Serialization.JavaScriptSerializer();
-                        var bundled=new UpstreamRelease.Choice { Id=416640528,Tag="v"+UpstreamRelease.Version,Sha256=UpstreamRelease.ZipHash };
-                        var future=new UpstreamRelease.Choice { Id=1,Tag="v1.2.0",Sha256=new string('a',64) };
-                        form.latestEngine=future;
-                        form.PopulateEngineChoices(new[]{future,bundled});
-                        if(form.engineVersions.Items.Count!=2||form.engineVersions.SelectedIndex!=1||!form.applyEngine.Enabled||!form.install.Enabled||!form.upstream.Text.Contains("New official"))throw new Exception("Latest DLL must be selected by default and offer Update");
-                        var selectedReceipt=serializer.Deserialize<NativeInstaller.Receipt>(File.ReadAllText(form.Receipt));
-                        selectedReceipt.engineVersion="1.2.0";selectedReceipt.engineReleaseId=1;selectedReceipt.engineZipHash=future.Sha256;
-                        File.WriteAllText(form.Receipt,serializer.Serialize(selectedReceipt));
-                        form.PopulateEngineChoices(new[]{future,bundled});
-                        if(form.engineVersions.SelectedIndex!=1||form.applyEngine.Enabled||form.install.Enabled||!form.upstream.Text.Contains("up to date"))throw new Exception("Installed upstream selection must stay current without reinstallation");
-                        if(form.enabled.Enabled||!form.note.Text.Contains("not verified"))throw new Exception("Unknown settings schema must use the original window");
-                        File.WriteAllBytes(form.Receipt,receiptBytes);form.latestEngine=bundled;form.PopulateEngineChoices(new[]{bundled});
-                        var manifest=serializer.Deserialize<System.Collections.Generic.Dictionary<string,object>>(manifestText);
-                        File.WriteAllText(packageDll,"INERT newer DLL fixture");
-                        ((System.Collections.Generic.Dictionary<string,object>)manifest["files"])["dxgi.dll"]=StandaloneAppUpdate.HashFile(packageDll);
-                        File.WriteAllText(manifestPath,serializer.Serialize(manifest));form.RefreshState();
-                        if(!form.install.Enabled || !form.status.Text.Contains("Mod update available"))throw new Exception("Different DLLs need Update action");
-                        File.Copy(packageDll,installedDll,true);
-                        var receipt=serializer.Deserialize<System.Collections.Generic.Dictionary<string,object>>(File.ReadAllText(form.Receipt));
-                        ((System.Collections.Generic.Dictionary<string,object>)receipt["files"])["dxgi.dll"]=StandaloneAppUpdate.HashFile(installedDll);
-                        File.WriteAllText(form.Receipt,serializer.Serialize(receipt));form.RefreshState();
-                        if(form.install.Enabled || !form.status.Text.Contains("up to date"))throw new Exception("Update should disable after replacement");
-                        File.WriteAllText(installedDll,"INERT unexpected edit");form.RefreshState();
-                        if(form.install.Enabled || !form.status.Text.Contains("files changed"))throw new Exception("Modified DLL must not offer routine update");
-                        File.WriteAllText(manifestPath,"invalid json");form.RefreshState();
-                        if(form.install.Enabled || !form.status.Text.Contains("Cannot verify"))throw new Exception("Invalid metadata must disable Update");
-                        File.Delete(installedDll);form.RefreshState();
-                        if(form.install.Enabled || !form.uninstall.Enabled)throw new Exception("Incomplete installation recovery state");
-                    } finally { File.WriteAllBytes(packageDll,packageBytes);File.WriteAllBytes(installedDll,installedBytes);File.WriteAllBytes(form.Receipt,receiptBytes);File.WriteAllText(manifestPath,manifestText);form.fileHashes.Clear();form.RefreshState(); }
-                    foreach(bool on in new[] {false,true}) { form.enabled.Checked=on; if(GetPrivateProfileInt("overlay","enabled",on?0:1,form.Ini)!=(on?1:0) || form.install.Enabled) throw new Exception("Settings changes must not enable Update"); }
-                    File.Delete(form.Receipt);form.RefreshState();
-                    if(!form.install.Enabled || form.install.Text!="Install")throw new Exception("Fresh installation must offer Install");
-                    File.WriteAllBytes(form.Receipt,receiptBytes);
-                    string recoveryFolder=Path.Combine(form.Target,".StandaloneGlass-backup"),journal=Path.Combine(recoveryFolder,".update.json");
-                    Directory.CreateDirectory(recoveryFolder);File.WriteAllText(journal,"{}");form.RefreshState();
-                    if(!form.install.Enabled || !form.status.Text.Contains("interrupted"))throw new Exception("Interrupted update needs recovery action");
-                    File.Delete(journal);Directory.Delete(recoveryFolder);form.RefreshState();
-                    string other=Path.Combine(args[1],".MyOwnFGVRMod-install.json");File.WriteAllText(other,"{}");form.RefreshState();
-                    if(form.install.Enabled || !form.status.Text.Contains("Remove the conflicting mod")) throw new Exception("Conflict state failed");File.Delete(other);
-                    form.RefreshState(); form.appUpdate.Text="App update unavailable; current version kept. Checks again next launch.";
-                    form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-10000,-10000);form.ShowInTaskbar=false;
-                    form.Show();Application.DoEvents();form.glass.SelfTest(args[2]);
-                    form.engineVersions.Focus();form.engineVersions.DroppedDown=true;Application.DoEvents();
-                    if(!form.engineVersions.DroppedDown)throw new Exception("Could not open version dropdown for regression check");
-                    for(int tick=0;tick<3;tick++) {
-                        form.RefreshState();Application.DoEvents();
-                        if(!form.engineVersions.DroppedDown)throw new Exception("Status refresh closed the version dropdown");
-                    }
-                    var chosenEngine=(UpstreamRelease.Choice)form.engineVersions.SelectedItem;
-                    var currentItems=form.engineVersions.Items.Count;
-                    form.PopulateEngineChoices(new[]{new UpstreamRelease.Choice { Id=42,Tag="v1.9.0",Sha256=new string('b',64) }});
-                    form.appUpdate.Text="";
-                    Application.DoEvents();
-                    if(!form.engineVersions.DroppedDown || form.engineVersions.Items.Count!=currentItems)throw new Exception("Background update disturbed version selection");
-                    form.engineVersions.DroppedDown=false;Application.DoEvents();
-                    if(form.pendingEngineChoices!=null || form.engineVersions.Items.Count!=2 || ((UpstreamRelease.Choice)form.engineVersions.SelectedItem).Tag!=chosenEngine.Tag)throw new Exception("Deferred releases lost selected version");
-                    form.appUpdate.Text="App update unavailable; current version kept. Checks again next launch.";
-                    byte[] themeIni=File.ReadAllBytes(form.Ini);
-                    foreach(bool light in new[]{true,false}) {
-                        (light ? form.lightTheme : form.darkTheme).PerformClick();
-                        if(WsgTheme.Light!=light || File.ReadAllText(Path.Combine(Package,"Appearance.txt"))!=(light ? "light":"dark"))throw new Exception("Appearance persistence failed");
-                        using(var reopened=new GlassWindow()) if(WsgTheme.Light!=light || reopened.BackColor!=form.BackColor)throw new Exception("Appearance restore failed");
-                        if(Convert.ToBase64String(themeIni)!=Convert.ToBase64String(File.ReadAllBytes(form.Ini)))throw new Exception("Appearance changed glass settings");
-                        using(var recorder=new ShortcutRecorder("Ctrl+Shift+F6")) {
-                            recorder.StartPosition=FormStartPosition.Manual;recorder.Location=new Point(-10000,-10000);recorder.Show(form);Application.DoEvents();
-                            var processKey=typeof(ShortcutRecorder).GetMethod("ProcessCmdKey",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
-                            processKey.Invoke(recorder,new object[]{new Message(),Keys.Control|Keys.D5});
-                            if(recorder.Shortcut!="Ctrl+5")throw new Exception("Recorder key dispatch failed");
-                            using(var b=new Bitmap(recorder.Width,recorder.Height)) { recorder.DrawToBitmap(b,new Rectangle(0,0,b.Width,b.Height));b.Save(args[2]+(light ? ".light-recorder.png":".dark-recorder.png")); }
-                            processKey.Invoke(recorder,new object[]{new Message(),Keys.Enter});
-                            if(recorder.DialogResult!=DialogResult.OK)throw new Exception("Recorder confirmation failed");
-                        }
-                        using(var recorder=new ShortcutRecorder("Pause")) {
-                            recorder.RecordKey(Keys.Control|Keys.D5);
-                            typeof(Form).GetMethod("OnDeactivate",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(recorder,new object[]{EventArgs.Empty});
-                            if(recorder.DialogResult!=DialogResult.Cancel)throw new Exception("Focus loss must cancel recording");
-                        }
-                        for(int page=0;page<3;page++) {
-                            form.glass.SelectedIndex=page;Application.DoEvents();
-                            using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]+(light ? ".light-":".dark-")+page+".png"); }
-                        }
-                        form.glass.ReviewLayout(args[2]+(light ? ".light":".dark"));
-                        form.glass.SelectedIndex=0;
-                        form.glass.RefreshValues(false);
-                        if(form.glass.Enabled)throw new Exception("Unavailable settings must stay disabled");
-                        using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]+(light ? ".light-disabled.png":".dark-disabled.png")); }
-                        form.glass.RefreshValues(true);
-                        // Draw the actual popup item renderer: DrawToBitmap alone omits the native popup.
-                        using(var b=new Bitmap(form.engineVersions.Width,form.engineVersions.ItemHeight*2))
-                        using(var g=Graphics.FromImage(b)) {
-                            var draw=typeof(WsgComboBox).GetMethod("OnDrawItem",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
-                            for(int item=0;item<2;item++) {
-                                var bounds=new Rectangle(0,item*form.engineVersions.ItemHeight,b.Width,form.engineVersions.ItemHeight);
-                                draw.Invoke(form.engineVersions,new object[]{new DrawItemEventArgs(g,form.engineVersions.Font,bounds,Math.Min(item,form.engineVersions.Items.Count-1),item==0 ? DrawItemState.Selected : DrawItemState.None)});
-                            }
-                            if(b.GetPixel(b.Width-1,b.Height-1).ToArgb()!=WsgTheme.Panel.ToArgb())throw new Exception("Dropdown background must follow theme");
-                            b.Save(args[2]+(light ? ".light-dropdown.png":".dark-dropdown.png"));
-                        }
-                        if(Convert.ToBase64String(themeIni)!=Convert.ToBase64String(File.ReadAllBytes(form.Ini)))throw new Exception("Disabled preview changed glass settings");
-                    }
-                    form.glass.SelectedIndex=0;
-                    using(var b=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(b,new Rectangle(0,0,form.Width,form.Height));b.Save(args[2]); }
-                    // Geometry/font scaling simulation. Does not change the user's display DPI.
-                    foreach(float scale in new[]{1.25f,1.5f,2f})using(var scaled=new GlassWindow()) {
-                        scaled.folder.Text=args[1];scaled.RefreshState();
-                        scaled.StartPosition=FormStartPosition.Manual;scaled.Location=new Point(-10000,-10000);scaled.ShowInTaskbar=false;
-                        scaled.Show();Application.DoEvents();
-                        var fonts=new System.Collections.Generic.Dictionary<Control,Font>();
-                        Action<Control> collect=null;collect=c=> { fonts[c]=c.Font;foreach(Control child in c.Controls)collect(child); };collect(scaled);
-                        scaled.AutoScaleMode=AutoScaleMode.None;scaled.Scale(new SizeF(scale,scale));
-                        foreach(var entry in fonts)entry.Key.Font=new Font(entry.Value.FontFamily,entry.Value.Size*scale,entry.Value.Style);
-                        scaled.footerLayoutKey=null;scaled.LayoutFooter();Application.DoEvents();
-                        foreach(Control control in scaled.Controls)if(control.Visible && !scaled.ClientRectangle.Contains(control.Bounds))throw new Exception("Scaled control outside window: "+control.Text);
-                        if(scaled.engineVersions.TabIndex>=scaled.applyEngine.TabIndex || scaled.folder.TabIndex>=scaled.browse.TabIndex)throw new Exception("Keyboard order does not match the workflow");
-                        using(var b=new Bitmap(scaled.Width,scaled.Height)) { scaled.DrawToBitmap(b,new Rectangle(0,0,b.Width,b.Height));b.Save(args[2]+".scale-"+(int)(scale*100)+".png"); }
-                        scaled.glass.ReviewLayout(args[2]+".scale-"+(int)(scale*100));
-                    }
-                    string placement=Path.Combine(Package,"WindowPlacement.json");
-                    Rectangle savedBounds=new Rectangle(80,90,820,820),loadedBounds;
-                    WindowPlacement.Save(placement,savedBounds);
-                    if(!WindowPlacement.TryRead(placement,out loadedBounds) || loadedBounds!=savedBounds)throw new Exception("Window placement did not round-trip");
-                    var leftMonitor=new Rectangle(-1920,0,1920,1080);
-                    var offscreen=WindowPlacement.KeepVisible(new Rectangle(-9000,7000,4000,3000),leftMonitor,new Size(660,680));
-                    if(!leftMonitor.Contains(offscreen))throw new Exception("Disconnected-monitor position was not recovered");
-                    foreach(string invalid in new[]{"broken JSON","null","{\"Width\":-1}","{\"Width\":999999999999999999999999}"}) {
-                        File.WriteAllText(placement,invalid);
-                        if(WindowPlacement.TryRead(placement,out loadedBounds))throw new Exception("Invalid placement was accepted");
-                    }
-                    WindowPlacement.Save(placement,savedBounds);
-                    using(var positioned=new GlassWindow()) {
-                        positioned.RememberWindow();
-                        typeof(Form).GetMethod("OnLoad",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(positioned,new object[]{EventArgs.Empty});
-                        var expected=WindowPlacement.KeepVisible(new Rectangle(savedBounds.Location,positioned.Size),Screen.FromRectangle(savedBounds).WorkingArea,positioned.Size);
-                        if(positioned.Bounds!=expected || positioned.FormBorderStyle!=FormBorderStyle.FixedDialog)throw new Exception("Position must restore without restoring an old resized window");
-                        positioned.folder.Text=args[1];positioned.RefreshState();
-                        if(positioned.Bounds!=expected)throw new Exception("Status refresh resized the restored window");
-                        positioned.Location=new Point(expected.X+10,expected.Y+10);
-                        typeof(Form).GetMethod("OnFormClosing",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(positioned,new object[]{new FormClosingEventArgs(CloseReason.UserClosing,false)});
-                        if(!WindowPlacement.TryRead(placement,out loadedBounds) || loadedBounds!=positioned.Bounds)throw new Exception("Closing did not save window placement");
-                    }
-                    return 0;
-                }
+                if(args.Length==3&&(args[0]=="--self-test"||args[0]=="--self-test-addon"))return form.TestPages(args[1],args[2],args[0]=="--self-test-addon");
                 form.RememberWindow();
                 form.Shown += async delegate {
                     try {
+                        form.setupTab.Focus();
                         await form.Detect();
+                        // Set initial focus once; never steal it from a user or on background refresh.
+                        if(form.ContainsFocus&&form.setupTab.Focused) {
+                            if(form.currentPage=="Settings"&&form.enabled.Enabled)form.enabled.Focus();else form.browse.Focus();
+                        }
                         form.CheckUpstream();
                         if(recoveryError!=null) { form.appUpdate.Text=recoveryError;return; }
                         bool restart=await StandaloneAppUpdate.CheckAsync(Package,
@@ -618,7 +745,7 @@ internal sealed class GlassWindow : Form
             }
             }
             return 0;
-        } catch(Exception e) { if(Array.IndexOf(args,"--self-test")>=0) Console.Error.WriteLine(e); else MessageBox.Show(e.Message,"Standalone glass cockpit");return 1; }
+        } catch(Exception e) { if(Array.IndexOf(args,"--self-test")>=0||Array.IndexOf(args,"--self-test-addon")>=0) Console.Error.WriteLine(e); else MessageBox.Show(e.Message,"Standalone glass cockpit");return 1; }
     }
 }
 

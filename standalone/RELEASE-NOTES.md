@@ -1,25 +1,25 @@
-# Standalone DLSS Glass Cockpit Refresh v1.0.2.10
+# Glass Cockpit Refresh v1.0.2.14
 
-This release switches to IFreemz's **unmodified official standalone DLL** (bundled v1.0.1), with the separate WeSimGlide installer and settings window.
+This release adds a choice of IFreemz's **official standalone DLL or ReShade add-on**, and a clearer **Setup / Settings** interface. Both bundled graphics files remain unmodified official v1.0.1 releases.
 
-- Install/Update selects the latest official stable DLL and verifies the release-note SHA-256 for both ZIP and DLL.
-- A version selector offers up to ten verified releases for rollback.
-- ReShade/add-on conflicts are blocked to prevent the fix running twice.
-- Existing glass settings, original uninstall backups and independent OFXR settings are preserved.
-- A compact Dark/Light interface remembers its fixed-size window's position. Dialogs center over the app, and the version dropdown stays open during status refreshes.
-- Click the settings-window shortcut to record a key combination. The existing shortcut is retained unless you save a change. Green tint and diagnostics remain in the official in-sim window.
-- Installer support goes to siglr / WeSimGlide; official-DLL screen issues go to IFreemz.
+- Choose Standalone DLL, or ReShade add-on for an existing ReShade 6.7+ installation with full add-on support. Switch modes with MSFS closed while preserving settings and backups; duplicate glass fixes are prevented.
+- Setup separates the installed mode/version from the selection. Latest official release is the default, with verified downloads, bundled offline installation and rollback choices.
+- ReShade itself and unrelated add-ons no longer cause blanket rejection. Compatibility information identifies known graphics products when possible, explains filename collisions, and flags other helpers as possible interactions without automatically changing them.
+- Settings puts the enable control and standalone shortcut recorder first, followed by smoothing. Advanced and Experimental sections expand when needed. ReShade settings become read-only while MSFS runs; use the in-game ReShade panel instead.
+- A slightly taller fixed window, compact label/input spacing, improved DPI layout, correctly sized checkboxes and dropdowns, clean repainting, centered dialogs, and remembered position, theme and page.
+- One short quick-start/troubleshooting README. Corresponding source archives are grouped under Source code; developer reports stay in the repository.
+- Installer support and graphics support are clearly separated in Help. Existing OFXR, Pimax and simulator settings remain untouched.
 
-**Existing users:** open the app normally. Compatibility updates may reopen it more than once. Then close MSFS and click Update if prompted. No uninstall is needed. Fresh users should extract the complete ZIP outside MSFS and run the EXE.
+**Updating:** open the app normally. Older apps may reopen more than once to complete compatibility updates. No uninstall is required. Close MSFS before updating installed graphics files. The app version and official graphics version are separate.
 
-**Known limitation:** optional Dark screen fix ON still reproduces an official v1.0.1 glare issue in an offline test. Its author-default OFF setting is unchanged. The official DLL is not patched; real aircraft/headset testing remains necessary.
+**Fresh installation:** extract the complete ZIP outside MSFS, run the EXE, and follow Setup. ReShade mode requires separately installed full-add-on ReShade. Use only one glass fix.
 
-The exact official DLL passes the four normal/copied-table startup probes, private-adapter check, 16 core scenarios and 13 motion measurements. The optional dark-screen regression remains disclosed rather than counted as a pass. App, installer and legacy automatic-update migration checks are supplied with the release validation results.
+**Known limitation:** optional Dark screen fix ON still fails a glare regression in the unchanged official v1.0.1 standalone DLL. The author-default OFF setting is retained. Use one settings editor at a time with v1.0.1; for ReShade mode, edit settings here only with MSFS closed. Offline validation does not replace real aircraft/headset testing.
 
 Glass Cockpit DLSS Fix by IFreemz: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix
 
-Installer source/support: https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh
+Installer/source: https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh
 
 Download/help: https://wesimglide.org/otherdata/tools/Standalone-DLSS-Glass-Cockpit-Refresh.html
 
-The app remains PolyForm Noncommercial; the official engine remains GPL-3.0-only with its original NOTICE. Corresponding source, checksums and signed update metadata accompany the release. Release signatures are not Windows Authenticode signing or antivirus clearance.
+App: PolyForm Noncommercial. Official graphics: GPL-3.0-only with original notices and corresponding source. Signed update metadata and SHA-256 checksums accompany the release; these are not Windows code-signing certificates or antivirus clearance.

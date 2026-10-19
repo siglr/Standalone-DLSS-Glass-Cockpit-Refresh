@@ -70,6 +70,9 @@ internal sealed class ParentDialogPosition : IDisposable
 // Native WinForms controls, using the WSG Client palette. No web runtime needed.
 internal static class WsgTheme
 {
+    // Parent-driven paints (notably disabled controls) can supply a translated and
+    // clipped Graphics. GDI text must retain that state or it bleeds onto siblings.
+    internal const TextFormatFlags PaintBounds=TextFormatFlags.PreserveGraphicsTranslateTransform|TextFormatFlags.PreserveGraphicsClipping;
     internal static bool Light;
     internal static bool HighContrast { get { return SystemInformation.HighContrast; } }
     internal static Color Background { get { return Pick(0x0d1418,0xedf3f7,SystemColors.Control); } }
@@ -113,7 +116,7 @@ internal static class WsgTheme
         foreach (Control control in root.Controls) {
             control.ForeColor = Text;
             var page = control as Panel;
-            if (page != null) page.BackColor = Panel;
+            if (page != null) page.BackColor = Equals(page.Tag,"surface") ? Background : Panel;
             var link = control as LinkLabel;
             if (link != null) { link.LinkColor=Mint; link.ActiveLinkColor=Text; link.VisitedLinkColor=Mint; }
             var text = control as TextBox;
@@ -181,7 +184,7 @@ internal sealed class WsgComboBox : ComboBox
         using(var brush=new SolidBrush(background)) e.Graphics.FillRectangle(brush,e.Bounds);
         string text=e.Index>=0 && e.Index<Items.Count ? GetItemText(Items[e.Index]) : Text;
         var bounds=Rectangle.Inflate(e.Bounds,-3,0);
-        TextRenderer.DrawText(e.Graphics,text,Font,bounds,foreground,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(e.Graphics,text,Font,bounds,foreground,WsgTheme.PaintBounds|TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix);
         if((e.State & DrawItemState.Focus)!=0) ControlPaint.DrawFocusRectangle(e.Graphics,e.Bounds,foreground,background);
         base.OnDrawItem(e);
     }
@@ -194,26 +197,43 @@ internal sealed class WsgLabel : Label
     protected override void OnPaint(PaintEventArgs e) {
         if(Enabled || WsgTheme.HighContrast) { base.OnPaint(e); return; }
         TextRenderer.DrawText(e.Graphics,Text,Font,ClientRectangle,WsgTheme.Muted,
-            TextFormatFlags.Left|TextFormatFlags.Top|TextFormatFlags.WordBreak|TextFormatFlags.TextBoxControl);
+            WsgTheme.PaintBounds|TextFormatFlags.Left|TextFormatFlags.Top|TextFormatFlags.WordBreak|TextFormatFlags.TextBoxControl);
     }
 }
 
+// Scale the glyph and clickable label together; retain native CheckBox input/accessibility.
 internal sealed class WsgCheckBox : CheckBox
 {
+    internal int GlyphSize { get { return Math.Max(16,Font.Height); } }
+    int Gap { get { return Math.Max(6,Font.Height/3); } }
+    public override Size GetPreferredSize(Size proposedSize) {
+        if(WsgTheme.HighContrast)return base.GetPreferredSize(proposedSize);
+        Size text=TextRenderer.MeasureText(Text,Font,Size.Empty,TextFormatFlags.SingleLine|TextFormatFlags.NoPadding);
+        return new Size(GlyphSize+Gap+text.Width+Padding.Horizontal+4,Math.Max(GlyphSize,text.Height)+Padding.Vertical+8);
+    }
     protected override void OnPaint(PaintEventArgs e) {
-        if(Enabled || WsgTheme.HighContrast) { base.OnPaint(e); return; }
-        int size=CheckBoxRenderer.GetGlyphSize(e.Graphics,System.Windows.Forms.VisualStyles.CheckBoxState.UncheckedNormal).Width;
-        var box=new Rectangle(1,(Height-size)/2,size,size);
-        using(var brush=new SolidBrush(WsgTheme.Background)) e.Graphics.FillRectangle(brush,box);
-        using(var pen=new Pen(WsgTheme.Muted)) {
+        if(WsgTheme.HighContrast) { base.OnPaint(e);return; }
+        // ButtonBase may reuse a buffer containing a previously painted sibling.
+        // Our custom renderer replaces its native paint adapter, including background fill.
+        using(var background=new SolidBrush(BackColor))e.Graphics.FillRectangle(background,ClientRectangle);
+        int size=GlyphSize;
+        var box=new Rectangle(Padding.Left+2,Padding.Top+(Height-Padding.Vertical-size)/2,size-1,size-1);
+        Color foreground=Enabled?WsgTheme.Text:WsgTheme.Muted;
+        using(var brush=new SolidBrush(Checked&&Enabled?WsgTheme.Selected:WsgTheme.Background))e.Graphics.FillRectangle(brush,box);
+        using(var pen=new Pen(foreground,Math.Max(1f,size/17f))) {
             e.Graphics.DrawRectangle(pen,box);
-            if(Checked) {
-                pen.Width=2;
-                e.Graphics.DrawLines(pen,new[] { new Point(box.Left+3,box.Top+size/2),new Point(box.Left+size/2,box.Bottom-3),new Point(box.Right-2,box.Top+3) });
+            if(CheckState==CheckState.Indeterminate) {
+                using(var brush=new SolidBrush(foreground))e.Graphics.FillRectangle(brush,Rectangle.Inflate(box,-size/4,-size/4));
+            } else if(Checked) {
+                pen.Width=Math.Max(2f,size/8f);
+                e.Graphics.DrawLines(pen,new[] { new Point(box.Left+size/5,box.Top+size/2),new Point(box.Left+size*2/5,box.Top+size*3/4),new Point(box.Left+size*4/5,box.Top+size/4) });
             }
         }
-        var text=new Rectangle(box.Right+5,0,Math.Max(0,Width-box.Right-5),Height);
-        TextRenderer.DrawText(e.Graphics,Text,Font,text,WsgTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine|TextFormatFlags.NoPadding);
+        var text=new Rectangle(box.Right+Gap,Padding.Top,Math.Max(0,Width-box.Right-Gap-Padding.Right),Height-Padding.Vertical);
+        var flags=WsgTheme.PaintBounds|TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine|TextFormatFlags.NoPadding;
+        if(!UseMnemonic)flags|=TextFormatFlags.NoPrefix;else if(!ShowKeyboardCues)flags|=TextFormatFlags.HidePrefix;
+        TextRenderer.DrawText(e.Graphics,Text,Font,text,foreground,flags);
+        if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(ClientRectangle,-1,-1),foreground,BackColor);
     }
 }
 
@@ -231,7 +251,7 @@ internal sealed class WsgButton : Button
         using(var brush=new SolidBrush(fill)) e.Graphics.FillRectangle(brush,ClientRectangle);
         using(var pen=new Pen(FlatAppearance.BorderColor)) e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);
         TextRenderer.DrawText(e.Graphics,Text,Font,ClientRectangle,Enabled ? ForeColor : WsgTheme.Muted,
-            TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            WsgTheme.PaintBounds|TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
         if(Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(ClientRectangle,-4,-4),WsgTheme.SelectedBorder,fill);
     }
 }

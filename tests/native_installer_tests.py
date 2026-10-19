@@ -5,7 +5,9 @@ from fixture_cleanup import cleanup_fixture
 from signed_fixture import Signing,compile_cs,ROOT
 work=Path(tempfile.mkdtemp(prefix='standalone-tests-',dir=ROOT/'build')).resolve()
 signing=Signing(work);runner=work/'native.exe'
-compile_cs(runner,ROOT/'tests/native_installer_runner.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'build/standalone/control/ProductVersion.cs')
+# Inert migration fixtures must not depend on a retired custom-engine build folder.
+version=work/'ProductVersion.cs';version.write_text('internal static class ProductVersion { internal const string Value = "0.1.9"; }')
+compile_cs(runner,ROOT/'tests/native_installer_runner.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,version)
 product='Standalone-DLSS-Glass-Cockpit-Refresh';exe=product+'.exe';names=['dxgi.dll','StandaloneGlassGraphics.dll','StandaloneGlass.ini']
 package=work/'package';package.mkdir()
 data={n:('INERT '+n).encode() for n in [*names,exe,'Install.ps1','InstallCore.ps1','Update.ps1','Resolve-MSFS.ps1','VERSION']}

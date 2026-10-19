@@ -1,23 +1,24 @@
-# Publish v1.0.2.10
+# Publish v1.0.2.14
 
 Staging folder: `C:\Standalone-DLSS-Glass-Cockpit-Refresh\build\standalone\server-upload`.
+Maintainer notes and listing material: `build/release-preparation` (do not upload that whole folder).
 
 ## GitHub
 
-Repository: siglr/Standalone-DLSS-Glass-Cockpit-Refresh. Release/tag: `v1.0.2.10`. Use RELEASE-NOTES.md as the release description. Commit/push the corresponding source before creating the tag. Attach the final ZIP, SHA-256, fixed-name hashes, signed version JSON and fixed-name source ZIP/checksum. Also retain legacy/bridge archives, feeds and matching source as compatibility assets; identify them as automatic-update intermediates, not normal user downloads.
+Repository: siglr/Standalone-DLSS-Glass-Cockpit-Refresh. Release/tag: `v1.0.2.14`. Commit/push the corresponding source before creating the tag. Use RELEASE-NOTES.md as the changelog and RELEASE-DESCRIPTION.md for the full product description. Attach the final ZIP, SHA-256, hashes JSON, signed version JSON and source ZIP/checksum. Published legacy/bridge assets remain immutable in release v1.0.2.10; this release reuses them rather than creating replacements.
 
 ## WSG / cPanel
 
-Destination: `/otherdata/tools/`. Follow PUBLISHING.md's ordered steps: source and compatibility files first, compatible .htaccess routing next, final ZIP/HTML/hashes next, signed main version JSON last. Verify live routes and checksums afterward. Preserve other tools' files and newer live .htaccess rules.
+Destination: `/otherdata/tools/`. Keep the existing `compatibility/` files and routing. Upload source/checksums first, current ZIP/hash/page/screenshot files next, and the signed main version JSON last. The staged compatibility folder contains byte-identical published files for verification or restoration, not new releases. There is no history folder.
 
-The staged index.html is copied unchanged from `C:\WSG MSFS 2024 FG Switcher\dist\website\index.html`. It includes OpenXR FG Switcher and matches the currently live index. Never substitute the older Stream Feeder copy or historical redirect. It references existing shared assets; those other tools/assets are not replaced by this release.
+The latest shared index baseline is `C:\WSG MSFS 2024 FG Switcher\dist\website\index.html`, including OpenXR FG Switcher. Only the Glass Cockpit Refresh card's description, image metadata and cache-busting query are updated in the staged index; other tool cards remain unchanged. Keep the cockpit illustration at the top of the specific mod page; the new dark Setup screenshot belongs on the shared tools index. Only this tool's screenshot assets are staged. Preserve newer live index and .htaccess changes when publishing. Do not upload or overwrite other tools' packages or assets.
+
+Verify the normal browser download and the legacy User-Agent routes after deployment. They must return HTTP 200 directly, without redirects, and match signed hashes with no-store/Vary headers. Local checks do not establish live deployment.
 
 ## Flightsim.to and HangarAddons
 
-Update the existing product entries to version `1.0.2.10`. Upload only `Standalone-DLSS-Glass-Cockpit-Refresh.zip` as the normal download. Use RELEASE-NOTES.md for the changelog. Keep corresponding source available via the GitHub release and WSG download page. The binary ZIP also contains the official engine's corresponding source.
+Update the existing entries to version `1.0.2.14`. Upload only `Standalone-DLSS-Glass-Cockpit-Refresh.zip` as the normal download. Replace the current product description with RELEASE-DESCRIPTION.md and add RELEASE-NOTES.md as the version changelog. Replace the one outdated screenshot with all four user-supplied PNGs in assets: glass-cockpit-refresh.png, glass-cockpit-refresh-settings.png, glass-cockpit-refresh-light.png and glass-cockpit-refresh-settings-light.png. Preserve every existing video. Keep the description’s note that they show a test build; official downloads enable automatic app updates.
 
-Suggested current description:
+Keep corresponding source linked through GitHub and the WSG download page. The user ZIP also contains both official graphics source archives under Source code. ReShade itself is not included.
 
-> A small independent installer and settings app by siglr / WeSimGlide for IFreemz's official standalone Glass Cockpit DLSS Fix. Improve glass-cockpit clarity with MSFS 2024 DLSS/FSR upscaling on desktop or in VR, without installing full ReShade. The official DLL stays unchanged. Installation defaults to the latest stable release and verifies the author's release-note SHA-256; a version selector allows rollback. Existing settings and OFXR configuration are preserved. OFXR remains separate for frame generation. Installer support goes to siglr / WSG; official-DLL screen issues go to IFreemz. Do not combine it with the ReShade add-on or another copy of the fix. Known optional v1.0.1 Dark screen fix ON glare issue: the author's default remains OFF.
-
-Existing users: open the app normally; compatibility updates can reopen it more than once. Then close MSFS and click Update if the installed DLL needs changing. No uninstall is required. Do not tell users to disable antivirus protection or claim antivirus clearance.
+Existing users: open the app normally; compatibility updates may reopen it more than once. Close MSFS before changing its installed files. No uninstall is required. Installer issues go to siglr/WSG; issues reproduced with the same official graphics version and mode installed manually go to IFreemz. Do not claim antivirus clearance.

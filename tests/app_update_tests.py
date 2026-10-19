@@ -15,12 +15,14 @@ if len(parts)==3:parts.append(1)
 else:parts[-1]+=1
 NEXT='.'.join(map(str,parts))
 from signed_fixture import Signing,compile_cs
+version=WORK/'ProductVersion.cs'
+version.write_text((ROOT/'standalone/ProductVersion.cs.in').read_text().replace('@GLASS_FILE_VERSION@',CURRENT).replace('@PROJECT_VERSION@',CURRENT))
 signing=Signing(WORK)
 RUNNER=WORK/'runner.exe'
-compile_cs(RUNNER,ROOT/'tests/app_update_runner.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'build/standalone/control/ProductVersion.cs')
+compile_cs(RUNNER,ROOT/'tests/app_update_runner.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,version)
 # Same production window/updater sources with a disposable test verification key.
 TEST_WINDOW=WORK/'current.exe'
-compile_cs(TEST_WINDOW,ROOT/'standalone/GlassWindow.cs',ROOT/'standalone/WsgTheme.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'tools/GlassSettingsPanel.cs',ROOT/'build/standalone/control/ProductVersion.cs',win=True)
+compile_cs(TEST_WINDOW,ROOT/'standalone/GlassWindow.cs',ROOT/'standalone/WsgTheme.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/NativeInstaller.cs',ROOT/'standalone/SimulatorDiscovery.cs',ROOT/'standalone/ReleaseTrust.cs',signing.public,ROOT/'tools/GlassSettingsPanel.cs',version,win=True)
 fake=WORK/'future.cs'
 fake.write_text('using System;using System.IO;using System.Reflection;\n[assembly:AssemblyVersion("'+NEXT+'")]\n[assembly:AssemblyFileVersion("'+NEXT+'")]\nclass Future { static void Main() { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"reopened.txt"),"'+NEXT+'"); } }')
 compile_cs(WORK/'future.exe',fake,win=True)

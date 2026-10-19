@@ -20,6 +20,9 @@ def sha(data):return hashlib.sha256(data).hexdigest()
 def notes(zip_hash,dll_hash):return f'- `glass-cockpit-dlss-fix-standalone.zip`: `{zip_hash}` (its `dxgi.dll`: `{dll_hash}`)\n'
 def snapshot(folder):return {p.relative_to(folder).as_posix():p.read_bytes() for p in folder.rglob('*') if p.is_file()}
 try:
+    paint_runner=work/'paint-tests.exe'
+    compile_cs(paint_runner,ROOT/'tests/wsg_paint_tests.cs',ROOT/'standalone/WsgTheme.cs')
+    subprocess.run([str(paint_runner)],check=True,timeout=30)
     source=(base/'upstream-source/src/glass_cockpit_dlss_fix.cpp').read_text(encoding='utf-8')
     loader=source[source.index('void load_settings() {'):source.index('void save_settings() {')]
     defaults=configparser.ConfigParser();defaults.read(ROOT/'standalone/glass-cockpit-dlss-fix.ini')
@@ -76,9 +79,9 @@ try:
         altered['body']=notes(sha(badzip.read_bytes()),sha(files['dxgi.dll']))
         run('archive',write('badmeta.json',altered),badzip,code=1)
     package=work/'new'
-    with zipfile.ZipFile(base/'Standalone-DLSS-Glass-Cockpit-Refresh-1.0.2.10-official-DLL-test.zip') as archive:
+    with zipfile.ZipFile(base/'Standalone-DLSS-Glass-Cockpit-Refresh-test.zip') as archive:
         assert not any(n.endswith(('.dpapi','.key','.pfx','.pem')) for n in archive.namelist())
-        assert {'licenses/IFreemz/LICENSE','licenses/IFreemz/NOTICE.md','IFreemz-standalone-v1.0.1-source.zip'}<=set(archive.namelist())
+        assert {'licenses/IFreemz/LICENSE','licenses/IFreemz/NOTICE.md','Source code/IFreemz-standalone-v1.0.1-source.zip','Source code/IFreemz-addon-v1.0.1-source.zip'}<=set(archive.namelist())
         archive.extractall(package)
     game=work/'game';game.mkdir();(game/'FlightSimulator2024.exe').write_bytes(b'INERT MARKER');(game/'ofxr_bridge.ini').write_bytes(b'OFXR settings unchanged\x00\xff')
     baseline=snapshot(game)
@@ -86,13 +89,46 @@ try:
     run('engine',metadata,base/'official.zip',package,fresh)
     assert b'=' not in (fresh/'glass-cockpit-dlss-fix.ini').read_bytes(), 'Fresh downloads must inherit the selected DLL defaults'
     run('uninstall',package,fresh)
-    for name,data in [('glass-cockpit-dlss-fix.addon64',b'INERT'),('renamed.addon64',b'INERT'),
-                      ('ReShade.ini',b'[GENERAL]\n'),('custom-loader.ini',b'[ADDON]\nAddonPath=D:\\other-addons\n'),
-                      ('addons/renamed.addon64',b'INERT'),('dxgi.dll',b'Unknown other proxy')]:
+    for name,data in [('glass-cockpit-dlss-fix.addon64',b'INERT'),
+                      ('addons/glass-cockpit-dlss-fix.addon64',b'INERT'),('dxgi.dll',b'Unknown other proxy')]:
         conflict=game/name;conflict.parent.mkdir(exist_ok=True);conflict.write_bytes(data)
         before=snapshot(game);run('install',package,game,'replace',code=1);assert snapshot(game)==before
         conflict.unlink()
         if conflict.parent!=game:conflict.parent.rmdir()
+    # ReShade configuration, a non-DXGI loader and unrelated add-ons are not conflicts.
+    for name,data in [('ReShade.ini',b'[GENERAL]\n'),('ReShade64.dll',b'INERT'),
+                      ('renamed.addon64',b'UNRELATED'),('addons/other.addon64',b'UNRELATED'),
+                      ('custom-loader.ini',b'[ADDON]\nAddonPath=addons\n')]:
+        path=game/name;path.parent.mkdir(exist_ok=True);path.write_bytes(data)
+    unrelated=snapshot(game)
+    run('install',package,game);run('uninstall',package,game);assert snapshot(game)==unrelated
+    # Renamed fix still blocks, including a custom absolute AddonPath outside the game.
+    external=work/'external-addons';external.mkdir()
+    for folder in (game,game/'addons',external):
+        (game/'custom-loader.ini').write_text('[ADDON]\nAddonPath='+str(folder)+'\n')
+        duplicate=folder/'renamed-fix.addon64'
+        # Official DLL version metadata identifies the fix without loading any binary.
+        duplicate.write_bytes((base/'binary/dxgi.dll').read_bytes())
+        before=snapshot(game);result=run('install',package,game,'replace',code=1)
+        assert 'Glass Cockpit DLSS Fix add-on found' in result.stderr and str(duplicate) in result.stderr
+        assert snapshot(game)==before
+        duplicate.unlink()
+    for name in set(snapshot(game))-set(baseline):(game/name).unlink()
+    (game/'addons').rmdir()
+    # Product labels improve guidance, but never authorize replacing an unverified DLL.
+    for product,expected in [('ReShade',"Use IFreemz's ReShade add-on"),
+                             ('OptiScaler','winmm.dll or version.dll'),('Another graphics tool','Another graphics tool')]:
+        cs=work/'version-fixture.cs'
+        cs.write_text('using System.Reflection; [assembly: AssemblyProduct('+json.dumps(product)+')] class Inert { static void Main() {} }')
+        compile_cs(game/'dxgi.dll',cs) # Read version resource only; never execute this fixture.
+        before=snapshot(game);result=run('install',package,game,'replace',code=1)
+        assert expected in result.stderr and product in result.stderr
+        assert snapshot(game)==before
+        (game/'dxgi.dll').unlink()
+    (game/'dxgi.dll').write_bytes((base/'binary/dxgi.dll').read_bytes()+b'unverified change')
+    before=snapshot(game);result=run('install',package,game,'replace',code=1)
+    assert 'SHA-256 does not match' in result.stderr and snapshot(game)==before
+    (game/'dxgi.dll').unlink()
     run('install',package,game)
     conflict=game/'glass-cockpit-dlss-fix.addon64';conflict.write_bytes(b'INERT conflict after installation')
     before=snapshot(game);run('install',package,game,'replace',code=1);assert snapshot(game)==before

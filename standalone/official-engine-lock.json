@@ -11,5 +11,12 @@
   "sourceSubmodules": {
     "third_party/minhook": "8af6b4acae5a9388fd742b56fa79ece89d96f823",
     "third_party/reshade": "6a7eaf8dbf5ed7050de1afd381ff058dfb51935e"
+  },
+  "addon": {
+    "asset": "glass-cockpit-dlss-fix.addon64",
+    "sha256": "a637456d2a93780ccfea73043f428e4f2a0f5f009423a3ca22b694b198565517",
+    "tagObject": "910e13c837034c4837ea861a2655977a81ebb608",
+    "commit": "fabb8cef17595e8c521595023cfe85ecef33e8c0",
+    "modified": false
   }
 }
