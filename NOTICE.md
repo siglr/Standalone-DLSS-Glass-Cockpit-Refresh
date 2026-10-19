@@ -1,4 +1,10 @@
-# License and attribution boundaries
+# Current distribution
+
+The independent installer/settings app is by siglr / WeSimGlide (PolyForm Noncommercial). Current packages distribute the unchanged official standalone **Glass Cockpit DLSS Fix by IFreemz**: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix (GPL-3.0-only plus original NOTICE terms). Engine notices are in licenses/IFreemz and corresponding source is bundled. See ENGINE-LICENSE.md. No upstream endorsement is implied.
+
+## Historical custom-engine attribution
+
+Earlier engine source and the app-only compatibility bridge retain all following notices.
 
 Required Notice: Copyright (c) 2026 siglr (https://github.com/siglr)
 

@@ -1,0 +1,20 @@
+THE USER DOWNLOAD (Flightsim.to, HangarAddons, and normal GitHub download)
+  Standalone-DLSS-Glass-Cockpit-Refresh.zip
+
+CURRENT SOURCE CODE
+  Standalone-DLSS-Glass-Cockpit-Refresh-source.zip
+  Publish alongside the release on GitHub and WSG.
+
+OLDER-APP AUTOMATIC UPDATES
+  compatibility/ contains two transition packages and their source code.
+  Upload this entire subfolder to /otherdata/tools/compatibility/ on WSG.
+  These are not alternate downloads for users. Keep them for older updaters.
+
+WSG ORDER
+  1. Upload compatibility/ and source archives/checksums.
+  2. Merge the staged .htaccess, preserving newer live rules; verify routes.
+  3. Upload the main ZIP, hashes, tool HTML and current index.html.
+  4. Upload Standalone-DLSS-Glass-Cockpit-Refresh.version.json LAST.
+
+RELEASE-NOTES.md is the changelog. RELEASE-UPLOADS.md has site-specific details.
+The latest index.html includes OpenXR FG Switcher and remains unchanged.

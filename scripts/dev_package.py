@@ -2,6 +2,9 @@
 from pathlib import Path
 import os,subprocess,sys,json
 ROOT=Path(__file__).resolve().parents[1]
+if (ROOT/'standalone/UpstreamRelease.cs').exists():
+ subprocess.run([sys.executable,'-B',str(ROOT/'scripts/official_test_package.py')],cwd=ROOT,check=True)
+ sys.exit(0)
 work=ROOT/'build/development-signing';work.mkdir(parents=True,exist_ok=True)
 key=work/'keys/development-key.dpapi';signer=work/'signer.exe';public=work/'ReleasePublicKey.cs'
 csc=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'

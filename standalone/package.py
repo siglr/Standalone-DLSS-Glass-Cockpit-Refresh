@@ -3,6 +3,9 @@ from pathlib import Path
 import hashlib,json,shutil,zipfile,sys,subprocess
 development="--development" in sys.argv
 root=Path(__file__).resolve().parents[1]
+if (root/'standalone/UpstreamRelease.cs').exists():
+ subprocess.run([sys.executable,'-B',str(root/'scripts/official_test_package.py')] if development else [sys.executable,'-B',str(root/'scripts/official_release_package.py'),*sys.argv[1:]],cwd=root,check=True)
+ sys.exit(0)
 sys.path.insert(0,str(root/'scripts'))
 from release_signing import prepare,sign
 public_key=prepare()

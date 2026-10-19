@@ -4,6 +4,69 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
+// Keep Windows' standard message boxes, button behavior and accessibility.
+// The temporary hook is confined to this UI thread and removed before activation;
+// it observes only dialog activation, never keyboard input or another process.
+internal sealed class ParentDialogPosition : IDisposable
+{
+    delegate IntPtr Hook(int code, IntPtr window, IntPtr data);
+    readonly Hook callback;
+    readonly IntPtr owner;
+    readonly Rectangle workArea;
+    IntPtr hook;
+    [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left,Top,Right,Bottom; }
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] static extern IntPtr SetWindowsHookEx(int kind,Hook callback,IntPtr module,uint thread);
+    [DllImport("user32.dll")] static extern bool UnhookWindowsHookEx(IntPtr hook);
+    [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr hook,int code,IntPtr window,IntPtr data);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window,uint flags);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window,uint command);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out Rect rect);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr window,System.Text.StringBuilder text,int count);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
+
+    internal ParentDialogPosition(IWin32Window parent) {
+        if(parent==null || parent.Handle==IntPtr.Zero)return;
+        owner=GetAncestor(parent.Handle,2); // GA_ROOT: settings panels belong to the main form.
+        if(owner==IntPtr.Zero)return;
+        workArea=Screen.FromHandle(owner).WorkingArea;
+        callback=OnActivate;
+        hook=SetWindowsHookEx(5,callback,IntPtr.Zero,GetCurrentThreadId()); // WH_CBT, current thread only.
+    }
+    internal static Point Center(Rectangle parent,Size dialog,Rectangle work) {
+        int x=parent.Left+(parent.Width-dialog.Width)/2, y=parent.Top+(parent.Height-dialog.Height)/2;
+        return new Point(Math.Max(work.Left,Math.Min(x,work.Right-dialog.Width)),
+                         Math.Max(work.Top,Math.Min(y,work.Bottom-dialog.Height)));
+    }
+    IntPtr OnActivate(int code,IntPtr window,IntPtr data) {
+        if(code==5 && GetWindow(window,4)==owner) { // HCBT_ACTIVATE, GW_OWNER
+            var name=new System.Text.StringBuilder(64);
+            GetClassName(window,name,name.Capacity);
+            if(name.ToString()=="#32770") {
+                Rect parent,dialog;
+                if(GetWindowRect(owner,out parent) && GetWindowRect(window,out dialog)) {
+                    var point=Center(Rectangle.FromLTRB(parent.Left,parent.Top,parent.Right,parent.Bottom),
+                        new Size(dialog.Right-dialog.Left,dialog.Bottom-dialog.Top),workArea);
+                    SetWindowPos(window,IntPtr.Zero,point.X,point.Y,0,0,0x15); // no size, Z-order or activation changes
+                }
+                Dispose();
+            }
+        }
+        return CallNextHookEx(IntPtr.Zero,code,window,data);
+    }
+    public void Dispose() {
+        if(hook!=IntPtr.Zero) { UnhookWindowsHookEx(hook);hook=IntPtr.Zero; }
+        GC.KeepAlive(callback);
+    }
+    internal static DialogResult Show(IWin32Window parent,string text,string caption,
+        MessageBoxButtons buttons=MessageBoxButtons.OK,MessageBoxIcon icon=MessageBoxIcon.None) {
+        var control=parent as Control;
+        if(control!=null && control.FindForm()!=null)parent=control.FindForm();
+        using(var position=new ParentDialogPosition(parent))
+            return MessageBox.Show(parent,text,caption,buttons,icon);
+    }
+}
+
 // Native WinForms controls, using the WSG Client palette. No web runtime needed.
 internal static class WsgTheme
 {
@@ -15,13 +78,24 @@ internal static class WsgTheme
     internal static Color Line { get { return Pick(0x304a53,0xa9bdc8,SystemColors.ControlDark); } }
     internal static Color Text { get { return Pick(0xedf7f6,0x183142,SystemColors.ControlText); } }
     internal static Color Muted { get { return Pick(0xa8bcc4,0x586f7d,SystemColors.GrayText); } }
-    internal static Color Mint { get { return Pick(0x78d8b7,0x168060,SystemColors.Highlight); } }
+    internal static Color Mint { get { return Pick(0x78d8b7,0x147957,SystemColors.Highlight); } }
+    internal static Color Warning { get { return Pick(0xffcc80,0x8b4300,SystemColors.ControlText); } }
     internal static Color Selected { get { return Pick(0x263852,0xd7e7ef,SystemColors.Highlight); } }
     internal static Color SelectedBorder { get { return Pick(0x9db7ff,0x3e63a8,SystemColors.Highlight); } }
 
     static Color Pick(int dark, int light, Color fallback) {
         int rgb=Light ? light : dark;
         return HighContrast ? fallback : Color.FromArgb(255, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
+    }
+    // Visual reading order, including nested scrolling panels. Labels aren't tab stops.
+    internal static void OrderControls(Control root) {
+        var controls=new System.Collections.Generic.List<Control>();
+        foreach(Control control in root.Controls)controls.Add(control);
+        controls.Sort((a,b)=>a.Top==b.Top ? a.Left.CompareTo(b.Left) : a.Top.CompareTo(b.Top));
+        for(int i=0;i<controls.Count;i++) {
+            controls[i].TabIndex=i;
+            if(controls[i] is Panel)OrderControls(controls[i]);
+        }
     }
     internal static Icon LoadIcon() {
         using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WeSimGlide.ico")) {
@@ -46,6 +120,8 @@ internal static class WsgTheme
             if (text != null) { text.BackColor=Background; text.BorderStyle=BorderStyle.FixedSingle; }
             var number = control as NumericUpDown;
             if (number != null) { number.BackColor=Background; number.ForeColor=Text; number.BorderStyle=BorderStyle.FixedSingle; }
+            var combo = control as ComboBox;
+            if (combo != null) { combo.BackColor=Panel; combo.ForeColor=Text; combo.Invalidate(); }
             var check = control as CheckBox;
             if (check != null) { check.FlatStyle=FlatStyle.Flat; check.UseVisualStyleBackColor=false; }
             var button = control as Button;
@@ -88,6 +164,56 @@ internal static class WsgTheme
             DwmSetWindowAttribute(form.Handle,35,ref background,4);
             DwmSetWindowAttribute(form.Handle,36,ref text,4);
         } catch (DllNotFoundException) { } catch (EntryPointNotFoundException) { }
+    }
+}
+
+// Native combo-box navigation and accessibility, with matching popup/item colours.
+internal sealed class WsgComboBox : ComboBox
+{
+    internal WsgComboBox() { DrawMode=DrawMode.OwnerDrawFixed; }
+    protected override void OnFontChanged(EventArgs e) {
+        base.OnFontChanged(e); ItemHeight=Font.Height+6;
+    }
+    protected override void OnDrawItem(DrawItemEventArgs e) {
+        bool selected=(e.State & DrawItemState.Selected)!=0;
+        Color background=selected ? (WsgTheme.HighContrast ? SystemColors.Highlight : WsgTheme.Selected) : WsgTheme.Panel;
+        Color foreground=!Enabled ? WsgTheme.Muted : selected && WsgTheme.HighContrast ? SystemColors.HighlightText : WsgTheme.Text;
+        using(var brush=new SolidBrush(background)) e.Graphics.FillRectangle(brush,e.Bounds);
+        string text=e.Index>=0 && e.Index<Items.Count ? GetItemText(Items[e.Index]) : Text;
+        var bounds=Rectangle.Inflate(e.Bounds,-3,0);
+        TextRenderer.DrawText(e.Graphics,text,Font,bounds,foreground,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPrefix);
+        if((e.State & DrawItemState.Focus)!=0) ControlPaint.DrawFocusRectangle(e.Graphics,e.Bounds,foreground,background);
+        base.OnDrawItem(e);
+    }
+}
+
+// WinForms otherwise substitutes a hard-coded disabled colour on dark panels.
+// Keep controls genuinely disabled; only their rendering changes.
+internal sealed class WsgLabel : Label
+{
+    protected override void OnPaint(PaintEventArgs e) {
+        if(Enabled || WsgTheme.HighContrast) { base.OnPaint(e); return; }
+        TextRenderer.DrawText(e.Graphics,Text,Font,ClientRectangle,WsgTheme.Muted,
+            TextFormatFlags.Left|TextFormatFlags.Top|TextFormatFlags.WordBreak|TextFormatFlags.TextBoxControl);
+    }
+}
+
+internal sealed class WsgCheckBox : CheckBox
+{
+    protected override void OnPaint(PaintEventArgs e) {
+        if(Enabled || WsgTheme.HighContrast) { base.OnPaint(e); return; }
+        int size=CheckBoxRenderer.GetGlyphSize(e.Graphics,System.Windows.Forms.VisualStyles.CheckBoxState.UncheckedNormal).Width;
+        var box=new Rectangle(1,(Height-size)/2,size,size);
+        using(var brush=new SolidBrush(WsgTheme.Background)) e.Graphics.FillRectangle(brush,box);
+        using(var pen=new Pen(WsgTheme.Muted)) {
+            e.Graphics.DrawRectangle(pen,box);
+            if(Checked) {
+                pen.Width=2;
+                e.Graphics.DrawLines(pen,new[] { new Point(box.Left+3,box.Top+size/2),new Point(box.Left+size/2,box.Bottom-3),new Point(box.Right-2,box.Top+3) });
+            }
+        }
+        var text=new Rectangle(box.Right+5,0,Math.Max(0,Width-box.Right-5),Height);
+        TextRenderer.DrawText(e.Graphics,Text,Font,text,WsgTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine|TextFormatFlags.NoPadding);
     }
 }
 

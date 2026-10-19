@@ -11,8 +11,9 @@ using System.Web.Script.Serialization;
 internal static class NativeInstaller
 {
     internal const string ReceiptName=".StandaloneGlass-install.json",BackupName=".StandaloneGlass-backup",TransactionName=".StandaloneGlass-transaction";
-    internal static readonly string[] Payload={"dxgi.dll","StandaloneGlassGraphics.dll","StandaloneGlass.ini"};
-    internal sealed class Receipt { public string version {get;set;} public Dictionary<string,string> files {get;set;} public Dictionary<string,string> backups {get;set;} public object registration {get;set;} }
+    internal static readonly string[] Payload={"dxgi.dll","glass-cockpit-dlss-fix.ini"};
+    internal static readonly string[] LegacyPayload={"dxgi.dll","StandaloneGlassGraphics.dll","StandaloneGlass.ini"};
+    internal sealed class Receipt { public string version {get;set;} public Dictionary<string,string> files {get;set;} public Dictionary<string,string> backups {get;set;} public object registration {get;set;} public string engineVersion {get;set;} public long engineReleaseId {get;set;} public string engineZipHash {get;set;} }
     internal sealed class Entry { public string name {get;set;} public string before {get;set;} public string after {get;set;} }
     internal sealed class Journal { public string owner {get;set;} public List<Entry> entries {get;set;} }
     internal sealed class OldEntry { public string oldHash {get;set;} public string newHash {get;set;} }
@@ -21,6 +22,29 @@ internal static class NativeInstaller
     static void Need(bool b,string text) { if(!b)throw new InvalidDataException(text); }
     static bool Hash(string s) { return s!=null&&Regex.IsMatch(s,"\\A[0-9a-fA-F]{64}\\z"); }
     static bool Equal(string a,string b) { return String.Equals(a,b,StringComparison.OrdinalIgnoreCase); }
+    internal static void CheckReShadeConflicts(string root) {
+        Safe(root);
+        if(!Directory.Exists(root))throw new InvalidDataException("Choose the simulator game folder first.");
+        string reason=null;
+        foreach(string name in new[]{"ReShade.ini","ReShade64.dll","ReShade32.dll"})
+            if(File.Exists(Path.Combine(root,name)))reason=name;
+        // ReShade also supports renamed add-ons and custom AddonPath directories. A configured
+        // ReShade install is blocked rather than trying to remove files or guess which are loaded.
+        foreach(string path in Directory.EnumerateFiles(root)) {
+            string extension=Path.GetExtension(path);
+            if(Equal(extension,".addon64")||Equal(extension,".addon"))reason=Path.GetFileName(path);
+            if(Equal(extension,".ini")) {
+                Safe(path);Need(new FileInfo(path).Length<=2*1024*1024,"Cannot safely inspect oversized INI for ReShade configuration: "+path);
+                string text=File.ReadAllText(path);
+                if(Regex.IsMatch(text,@"(?im)^\s*\[ADDON\]\s*$")&&Regex.IsMatch(text,@"(?im)^\s*AddonPath\s*="))reason=Path.GetFileName(path)+" (ReShade AddonPath)";
+            }
+        }
+        foreach(string name in new[]{"reshade-addons","addons"}) {
+            string dir=Path.Combine(root,name);Safe(dir);
+            if(Directory.Exists(dir)&&Directory.EnumerateFiles(dir).Any(p=>Equal(Path.GetExtension(p),".addon64")||Equal(Path.GetExtension(p),".addon")))reason=name;
+        }
+        Need(reason==null,"ReShade/add-on conflict detected: "+reason+". Use IFreemz's ReShade add-on with ReShade, or remove that installation first. Do not run both fixes. No files were changed.");
+    }
     static string Digest(string p) { Safe(p);return File.Exists(p)?StandaloneAppUpdate.HashFile(p):null; }
     internal static void Safe(string path) {
         string full=Path.GetFullPath(path);
@@ -31,7 +55,34 @@ internal static class NativeInstaller
     }
     static T Read<T>(string path) { Safe(path);Need(new FileInfo(path).Length<=1024*1024,"Installation metadata is too large.");return Json.Deserialize<T>(File.ReadAllText(path)); }
     static void Write(string path,object value) { Safe(path);File.WriteAllText(path,Json.Serialize(value),new UTF8Encoding(false)); }
-    static bool Owned(string n) { return Payload.Contains(n,StringComparer.Ordinal); }
+    static bool Owned(string n) { return Payload.Concat(LegacyPayload).Contains(n,StringComparer.Ordinal); }
+    static bool Settings(string n) { return n=="StandaloneGlass.ini"||n=="glass-cockpit-dlss-fix.ini"; }
+    static void SaveSettings(string package,string file) {
+        string actual=Digest(file),stem=Path.GetFileNameWithoutExtension(file)+".saved";
+        string saved=Path.Combine(package,stem+".ini");Safe(saved);
+        if(File.Exists(saved)&&!Equal(Digest(saved),actual))saved=Path.Combine(package,stem+"."+actual.ToLowerInvariant()+".ini");
+        Safe(saved);if(!File.Exists(saved))File.Copy(file,saved,false);
+        Need(Equal(Digest(saved),actual),"Settings backup changed; preserved.");
+    }
+    internal static byte[] MigrateSettings(string legacy) {
+        // Preserve comments/unknown sections. The upstream DLL uses overlay and advanced sections.
+        string text=File.ReadAllText(legacy),strength=null;bool cockpit=false;
+        var lines=new List<string>();
+        foreach(string line in Regex.Split(text,"\\r?\\n")) {
+            string trimmed=line.Trim();
+            if(trimmed.StartsWith("[")&&trimmed.EndsWith("]")) {
+                cockpit=Equal(trimmed,"[cockpit]");lines.Add(cockpit?"[overlay]":line);continue;
+            }
+            if(cockpit&&Regex.IsMatch(trimmed,@"^glass_strength\s*=",RegexOptions.IgnoreCase)) { strength=trimmed.Substring(trimmed.IndexOf('=')+1);continue; }
+            lines.Add(line);
+        }
+        if(strength!=null) {
+            int section=lines.FindIndex(s=>Equal(s.Trim(),"[advanced]"));
+            if(section<0){lines.Add("[advanced]");lines.Add("glass_strength="+strength);}
+            else lines.Insert(section+1,"glass_strength="+strength);
+        }
+        return new UTF8Encoding(false).GetBytes(String.Join("\r\n",lines));
+    }
     static string TargetPath(string root,string name) {
         Need(Owned(name)||name==ReceiptName||(name.StartsWith(BackupName+"/",StringComparison.Ordinal)&&Owned(name.Substring(BackupName.Length+1))),"Unexpected installation filename.");
         string p=Path.Combine(root,name.Replace('/',Path.DirectorySeparatorChar));Safe(p);return p;
@@ -51,7 +102,7 @@ internal static class NativeInstaller
         if(!Directory.Exists(stage))return;
         // Exact transaction file set only; unknown contents are never recursively deleted.
         var permitted=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"journal.json","journal.tmp","committed","replace.tmp"};
-        for(int i=0;i<7;i++){permitted.Add("old-"+i);permitted.Add("new-"+i);}
+        for(int i=0;i<9;i++){permitted.Add("old-"+i);permitted.Add("new-"+i);}
         foreach(string f in Directory.GetFileSystemEntries(stage)) { Safe(f);Need(File.Exists(f)&&permitted.Contains(Path.GetFileName(f)),"Unexpected recovery file; preserved."); }
         foreach(string f in Directory.GetFiles(stage))File.Delete(f);Directory.Delete(stage);
         string backup=Path.Combine(root,BackupName);Safe(backup);
@@ -61,7 +112,7 @@ internal static class NativeInstaller
         string stage=Path.Combine(root,TransactionName);Safe(stage);if(!Directory.Exists(stage))return;
         string jp=Path.Combine(stage,"journal.json");
         if(!File.Exists(jp))throw new InvalidDataException("Incomplete installation staging needs review; preserve "+stage);
-        var j=Read<Journal>(jp);Need(j!=null&&j.owner==Path.GetFullPath(root)&&j.entries!=null&&j.entries.Count<=7,"Invalid recovery record.");
+        var j=Read<Journal>(jp);Need(j!=null&&j.owner==Path.GetFullPath(root)&&j.entries!=null&&j.entries.Count<=9,"Invalid recovery record.");
         var seen=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         bool committed=File.Exists(Path.Combine(stage,"committed"));
         for(int i=0;i<j.entries.Count;i++) {
@@ -80,8 +131,8 @@ internal static class NativeInstaller
     }
     static void Transaction(string root,Dictionary<string,byte[]> changes,Action<int> fault) {
         string stage=Path.Combine(root,TransactionName);Safe(stage);Need(!Directory.Exists(stage),"Recover the previous installation first.");
-        // At most three installed files, three original backups and the receipt.
-        Need(changes.Count<=7,"Unexpected transaction size.");Directory.CreateDirectory(stage);
+        // Four known names across both layouts, their original backups, and the receipt.
+        Need(changes.Count<=9,"Unexpected transaction size.");Directory.CreateDirectory(stage);
         var j=new Journal { owner=Path.GetFullPath(root),entries=new List<Entry>() };
         bool ready=false;
         try {
@@ -127,7 +178,7 @@ internal static class NativeInstaller
         foreach(var p in j.files)foreach(string prefix in new[]{".update-old-",".update-new-",".update-restore-"}) { string f=Path.Combine(backup,prefix+p.Key);Safe(f);if(File.Exists(f))File.Delete(f); }
         foreach(string n in new[]{".update-receipt-new",".update-receipt-old",".update-receipt-restore",".update.json"}) { string f=Path.Combine(backup,n);Safe(f);if(File.Exists(f))File.Delete(f); }
     }
-    internal static string Run(string package,string root,bool remove,bool replace,Action<int> fault) {
+    internal static string Run(string package,string root,bool remove,bool replace,Action<int> fault,UpstreamRelease.Prepared engine=null) {
         package=Path.GetFullPath(package);root=Path.GetFullPath(root);Safe(package);Safe(root);
         Need(!Equal(package,root),"Keep the app outside the simulator folder.");
         Need(!Regex.IsMatch(root,@"\\WindowsApps(\\|$)",RegexOptions.IgnoreCase),"Do not install into protected WindowsApps.");
@@ -135,6 +186,14 @@ internal static class NativeInstaller
         foreach(var p in Process.GetProcessesByName("FlightSimulator2024")) { p.Dispose();throw new InvalidOperationException("Close MSFS before changing installed files."); }
         var inventory=StandaloneAppUpdate.ReadInventory(package,false);
         Need(Equal(Digest(Path.Combine(package,StandaloneAppUpdate.Exe)),inventory.files[StandaloneAppUpdate.Exe]),"Launcher does not match its signed package.");
+        if(!remove) {
+            CheckReShadeConflicts(root);
+            if(inventory.files.ContainsKey("glass-cockpit-dlss-fix.ini")&&!File.Exists(Path.Combine(root,ReceiptName))) {
+                string existing=Digest(Path.Combine(root,"dxgi.dll"));
+                Need(existing==null||Equal(existing,UpstreamRelease.DllHash)||(engine!=null&&Equal(existing,StandaloneAppUpdate.Hash(engine.Dll))),
+                    "Another DXGI mod already occupies this folder. Remove it with its own installer before installing the standalone fix; it may be ReShade or another loader. The existing DLL was preserved.");
+            }
+        }
         using(var gate=StandaloneAppUpdate.Enter(root)) {
             Need(gate!=null,"Another installer is working on this simulator folder.");
             Recover(root);RecoverLegacy(root);
@@ -147,10 +206,8 @@ internal static class NativeInstaller
                 foreach(var p in old.files) {
                     string dest=TargetPath(root,p.Key),actual=Digest(dest),original;old.backups.TryGetValue(p.Key,out original);
                     if(actual!=null&&!Equal(actual,p.Value)&&!Equal(actual,original)) {
-                        Need(p.Key=="StandaloneGlass.ini","Installed file changed; preserved: "+dest);
-                        string saved=Path.Combine(package,"StandaloneGlass.saved.ini");Safe(saved);
-                        if(File.Exists(saved)&&!Equal(Digest(saved),actual))saved=Path.Combine(package,"StandaloneGlass.saved."+actual.ToLowerInvariant()+".ini");
-                        Safe(saved);if(!File.Exists(saved))File.Copy(dest,saved,false);Need(Equal(Digest(saved),actual),"Settings backup changed; preserved.");
+                        Need(Settings(p.Key),"Installed file changed; preserved: "+dest);
+                        SaveSettings(package,dest);
                     }
                     changes[p.Key]=original==null?null:File.ReadAllBytes(TargetPath(root,BackupName+"/"+p.Key));
                 }
@@ -159,27 +216,53 @@ internal static class NativeInstaller
                 return "Uninstalled. Original files restored; settings backups kept beside the app.";
             }
             Need(!File.Exists(Path.Combine(root,".MyOwnFGVRMod-install.json")),"Uninstall the other glass/combined mod first. Both use dxgi.dll.");
-            var payload=Read<Receipt>(Path.Combine(package,"payload.json"));Need(payload!=null&&payload.files!=null&&payload.files.Count==3&&payload.version==inventory.version,"Invalid simulator payload.");
-            foreach(string n in Payload)Need(payload.files.ContainsKey(n)&&Equal(Digest(Path.Combine(package,n)),payload.files[n])&&Equal(payload.files[n],inventory.files[n]),"Payload does not match the signed release: "+n);
+            var payload=Read<Receipt>(Path.Combine(package,"payload.json"));Need(payload!=null&&payload.files!=null&&payload.version==inventory.version,"Invalid simulator payload.");
+            var names=payload.files.Keys.ToArray();
+            Need(new HashSet<string>(names).SetEquals(Payload)||new HashSet<string>(names).SetEquals(LegacyPayload),"Unexpected simulator payload layout.");
+            foreach(string n in names)Need(inventory.files.ContainsKey(n)&&Equal(Digest(Path.Combine(package,n)),payload.files[n])&&Equal(payload.files[n],inventory.files[n]),"Payload does not match the signed release: "+n);
             var next=new Receipt { version=inventory.version,files=new Dictionary<string,string>(),backups=new Dictionary<string,string>() };
+            if(names.Contains("glass-cockpit-dlss-fix.ini")) {
+                next.engineVersion=engine==null?UpstreamRelease.Version:engine.Release.Tag.Substring(1);
+                next.engineReleaseId=engine==null?0:engine.Release.Id;
+                next.engineZipHash=engine==null?UpstreamRelease.ZipHash:engine.Release.Sha256;
+            } else Need(engine==null,"Selected upstream DLL requires the official-engine settings layout.");
             if(old!=null) {
-                foreach(string n in Payload)Need(old.files.ContainsKey(n)&&File.Exists(TargetPath(root,n)),"Incomplete installation; use Uninstall to recover first.");
-                foreach(var p in old.files)Need(p.Key=="StandaloneGlass.ini"||Equal(Digest(TargetPath(root,p.Key)),p.Value),"Installed file changed; preserved.");
+                Need(new HashSet<string>(old.files.Keys).SetEquals(Payload)||new HashSet<string>(old.files.Keys).SetEquals(LegacyPayload),"Incomplete receipt; use Uninstall to recover first.");
+                foreach(string n in old.files.Keys)Need(File.Exists(TargetPath(root,n)),"Incomplete installation; use Uninstall to recover first.");
+                foreach(var p in old.files)Need(Settings(p.Key)||Equal(Digest(TargetPath(root,p.Key)),p.Value),"Installed file changed; preserved.");
                 foreach(var p in old.backups) { Need(Equal(Digest(TargetPath(root,BackupName+"/"+p.Key)),p.Value),"Original backup changed; preserved.");next.backups.Add(p.Key,p.Value); }
                 foreach(var p in old.files)next.files.Add(p.Key,p.Value);
             } else {
                 Need(!Directory.Exists(Path.Combine(root,BackupName)),"An old backup folder exists; preserve/recover it first.");
-                foreach(string n in Payload) {
+            }
+            foreach(string n in names.Where(n=>old==null||!old.files.ContainsKey(n))) {
                     string dest=TargetPath(root,n);if(!File.Exists(dest))continue;
                     Need(replace,"Existing mod files preserved. Confirm backup and replacement first.");
                     byte[] bytes=File.ReadAllBytes(dest);changes[BackupName+"/"+n]=bytes;next.backups[n]=StandaloneAppUpdate.Hash(bytes);
-                }
             }
-            foreach(string n in Payload) {
-                if(old!=null&&n=="StandaloneGlass.ini")continue;
+            foreach(string n in names) {
+                if(old!=null&&old.files.ContainsKey(n)&&Settings(n))continue;
                 changes[n]=File.ReadAllBytes(Path.Combine(package,n));next.files[n]=payload.files[n];
                 Need(Equal(StandaloneAppUpdate.Hash(changes[n]),payload.files[n]),"Payload changed while preparing installation.");
+                if(Settings(n)&&File.Exists(TargetPath(root,n))) {
+                    changes[n]=File.ReadAllBytes(TargetPath(root,n));next.files[n]=StandaloneAppUpdate.Hash(changes[n]);
+                } else if(n=="glass-cockpit-dlss-fix.ini"&&old!=null&&old.files.ContainsKey("StandaloneGlass.ini")) {
+                    changes[n]=MigrateSettings(TargetPath(root,"StandaloneGlass.ini"));next.files[n]=StandaloneAppUpdate.Hash(changes[n]);
+                } else if(n=="glass-cockpit-dlss-fix.ini"&&engine!=null) {
+                    // A newly selected release owns its defaults. Do not seed a future DLL with
+                    // this wrapper's older default values. Existing and migrated preferences stay intact.
+                    changes[n]=Encoding.UTF8.GetBytes("; Settings use the installed official DLL's defaults until changed.\r\n");
+                    next.files[n]=StandaloneAppUpdate.Hash(changes[n]);
+                }
             }
+            if(old!=null)foreach(string n in old.files.Keys.Except(names)) {
+                if(Settings(n))SaveSettings(package,TargetPath(root,n));
+                string original;old.backups.TryGetValue(n,out original);
+                changes[n]=original==null?null:File.ReadAllBytes(TargetPath(root,BackupName+"/"+n));
+                if(original!=null)changes[BackupName+"/"+n]=null;
+                next.files.Remove(n);next.backups.Remove(n);
+            }
+            if(engine!=null) { changes["dxgi.dll"]=engine.Dll;next.files["dxgi.dll"]=StandaloneAppUpdate.Hash(engine.Dll); }
             changes[ReceiptName]=Encoding.UTF8.GetBytes(Json.Serialize(next));Transaction(root,changes,fault);
             return old==null?"Installed. Start MSFS normally.":"Updated. Your settings and original uninstall backups were kept.";
         }

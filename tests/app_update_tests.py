@@ -71,6 +71,25 @@ p=fixture();invoke('version',p);invoke('gate',p)
 before=snap(p);prepare(p);invoke('apply',p);assert_updated(p,before)
 assert not (p/'.app-update').exists()
 print('PASS normal replacement, retired files, licenses, settings and unrelated files preserved',flush=True)
+
+# Accept the exact official two-file payload, reject missing/extra/mixed layouts.
+official=dict(fresh)
+for n in ('StandaloneGlassGraphics.dll','StandaloneGlass.ini'):official.pop(n)
+official['glass-cockpit-dlss-fix.ini']=b'[overlay]\nenabled=1\n'
+official['payload.json']=encoded({'product':PRODUCT,'version':NEXT,'files':{n:digest(official[n]) for n in ('dxgi.dll','glass-cockpit-dlss-fix.ini')}})
+official=inventory(official)
+p=fixture();prepare(p,data=official);invoke('apply',p)
+assert not (p/'StandaloneGlassGraphics.dll').exists() and (p/'glass-cockpit-dlss-fix.ini').read_bytes()==official['glass-cockpit-dlss-fix.ini']
+for kind in ('missing','extra','mixed','hash'):
+    broken=dict(official);payload=json.loads(broken['payload.json'])
+    if kind=='missing':payload['files'].pop('dxgi.dll')
+    elif kind=='extra':payload['files']['unexpected.dll']=digest(b'bad')
+    elif kind=='mixed':payload['files']['StandaloneGlass.ini']=digest(b'bad')
+    else:payload['files']['dxgi.dll']='0'*64
+    broken['payload.json']=encoded(payload);broken=inventory(broken)
+    p=fixture();before=snap(p);prepare(p,data=broken,code=1);assert snap(p)==before
+print('PASS official-DLL payload migration and strict layout/hash rejection',flush=True)
+
 for mode in ['fail','crash','commit-crash','locked']:
     p=fixture();before=snap(p);prepare(p)
     invoke(mode,p,code={'fail':1,'crash':71,'commit-crash':72}.get(mode,0))

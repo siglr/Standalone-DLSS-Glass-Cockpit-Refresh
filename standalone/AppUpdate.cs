@@ -125,7 +125,8 @@ internal static class StandaloneAppUpdate
             Require(!pair.Key.Equals(Inventory,StringComparison.OrdinalIgnoreCase)&&seen.Add(pair.Key)&&IsHash(pair.Value),"Invalid inventory entry.");
             if(verify)Require(File.Exists(p)&&HashFile(p)==pair.Value,"App file changed or missing: "+pair.Key+". Extract a fresh ZIP to update.");
         }
-        foreach(string n in new[]{Exe,"VERSION","payload.json","Install.ps1","InstallCore.ps1","Update.ps1","Resolve-MSFS.ps1","dxgi.dll","StandaloneGlassGraphics.dll","StandaloneGlass.ini"})Require(f.files.ContainsKey(n),"Incomplete standalone package: "+n);
+        foreach(string n in new[]{Exe,"VERSION","payload.json","Install.ps1","InstallCore.ps1","Update.ps1","Resolve-MSFS.ps1","dxgi.dll"})Require(f.files.ContainsKey(n),"Incomplete standalone package: "+n);
+        Require(f.files.ContainsKey("glass-cockpit-dlss-fix.ini") || (f.files.ContainsKey("StandaloneGlassGraphics.dll")&&f.files.ContainsKey("StandaloneGlass.ini")),"Incomplete graphics payload.");
         return f;
     }
     static void Clean(string root) {
@@ -172,8 +173,11 @@ internal static class StandaloneAppUpdate
             Require(File.ReadAllText(Path.Combine(next,"VERSION")).Trim()==release.version,"Package version mismatch.");
             Require(new Version(FileVersionInfo.GetVersionInfo(Path.Combine(next,Exe)).FileVersion)==ParseVersion(release.version),"Executable version mismatch.");
             var payload=Read<Files>(Path.Combine(next,"payload.json"));
-            Require(payload.product==Product&&payload.version==release.version&&payload.files!=null&&payload.files.Count==3,"Wrong simulator payload.");
-            foreach(string n in new[]{"dxgi.dll","StandaloneGlassGraphics.dll","StandaloneGlass.ini"})Require(payload.files.ContainsKey(n)&&payload.files[n]==fresh.files[n],"Simulator payload hash mismatch.");
+            Require(payload.product==Product&&payload.version==release.version&&payload.files!=null,"Wrong simulator payload.");
+            var layout=new HashSet<string>(payload.files.Keys,StringComparer.Ordinal);
+            Require(layout.SetEquals(new[]{"dxgi.dll","glass-cockpit-dlss-fix.ini"}) ||
+                layout.SetEquals(new[]{"dxgi.dll","StandaloneGlassGraphics.dll","StandaloneGlass.ini"}),"Wrong simulator payload layout.");
+            foreach(string n in layout)Require(fresh.files.ContainsKey(n)&&payload.files[n]==fresh.files[n],"Simulator payload hash mismatch.");
             foreach(string n in fresh.files.Keys) { string dest=SafePath(root,n);Require(old.files.ContainsKey(n)||(!File.Exists(dest)&&!Directory.Exists(dest)),"Update would replace unrelated data: "+n); }
             File.WriteAllText(Path.Combine(stage,"release.json"),Json(release));
             File.Copy(Path.Combine(root,Inventory),Path.Combine(stage,"source-inventory.json"));

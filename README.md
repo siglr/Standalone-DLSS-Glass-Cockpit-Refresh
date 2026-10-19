@@ -1,3 +1,17 @@
+# Official-DLL release v1.0.2.10
+
+Current user instructions: [RELEASE-README.md](standalone/RELEASE-README.md). The independent WeSimGlide installer uses IFreemz's unchanged official DLL, preserving the author's defaults and OFXR settings. [Release notes](standalone/RELEASE-NOTES.md) include the known optional dark-screen limitation. [Production packaging and legacy update migration](standalone/PUBLISHING.md) require explicit signing configuration. The custom-engine instructions below are historical.
+
+Current work uses IFreemz's untouched official standalone DLL with this separate installer/settings app. Build the isolated **1.0.2.10 test package** using `python -B scripts/official_test_package.py`; see [test instructions](standalone/OFFICIAL-DLL-TEST.md), [comparison](docs/OFFICIAL-DLL-COMPARISON.md) and [upstream improvement report](docs/IFREEMZ-ENHANCEMENTS.md).
+
+After packaging, run `python -B tests/development_package_tests.py`, `python -B tests/official_engine_tests.py`, `python -B tests/standalone_tests.py`, and `python -B tests/app_update_tests.py`. With the real simulator closed, run `python -B tests/official_graphics_tests.py` and `python -B tests/official_fixture_regressions.py` sequentially. The latter deliberately returns failure for the documented official v1.0.1 Dark screen fix ON regression; default-OFF and external-settings cases must pass. Do not run installer tests concurrently with simulator-named graphics fixtures.
+
+The custom-engine CMake targets below remain historical regression references; they do not build the official DLL. The isolated test ZIP includes the exact upstream DLL, its license/notices and corresponding source; automatic app updates are disabled while official DLL discovery and manual version selection remain available. Production packaging builds the separate C# app with the production public key and enabled updates; it never rebuilds the official DLL.
+
+The normal Install/Update button verifies the latest official stable release against the ZIP and DLL SHA-256 values in its release notes. The selector retains up to ten verified releases for explicit rollback. ReShade/add-on conflicts block installation; uninstall remains available. Installer support goes to siglr/WSG; unmodified official-DLL screen issues go to IFreemz. See the current test instructions above.
+
+## Previous published v1.0.2 architecture
+
 # Standalone DLSS Glass Cockpit Refresh
 
 Glass Cockpit DLSS Fix for **Microsoft Flight Simulator 2024**, with the required ReShade D3D12 components built in and a small install/uninstall/settings window. Desktop and VR; no separate ReShade installation or menu is needed. It does not include frame generation. Official OFXR Bridge can be installed separately.

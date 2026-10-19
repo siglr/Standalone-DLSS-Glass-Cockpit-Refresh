@@ -1,0 +1,15 @@
+{
+  "repository": "IFreemz/msfs2024-glass-cockpit-dlss-fix",
+  "release": "v1.0.1",
+  "releaseId": 416640528,
+  "commit": "e8a26fa9b99dba6b74213e999f871da933384da0",
+  "asset": "glass-cockpit-dlss-fix-standalone.zip",
+  "zipSha256": "345dc3b760f2750346c986e87faa0900e9f17eeee85a3ceab95caf96aa954281",
+  "dllSha256": "06f11b0abeb4d3a9b1a14b7ec22faf6de214c8f218353f1e062471015db2a685",
+  "dllModified": false,
+  "license": "GPL-3.0-only with upstream NOTICE.md section 7 terms",
+  "sourceSubmodules": {
+    "third_party/minhook": "8af6b4acae5a9388fd742b56fa79ece89d96f823",
+    "third_party/reshade": "6a7eaf8dbf5ed7050de1afd381ff058dfb51935e"
+  }
+}

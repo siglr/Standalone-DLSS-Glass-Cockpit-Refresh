@@ -1,4 +1,14 @@
-# Security and application behavior — v0.1.10
+# Security and application behavior — v1.0.2.10
+
+The separate C# app now installs IFreemz's unchanged official standalone dxgi.dll and glass-cockpit-dlss-fix.ini. It checks GitHub releases at launch, defaults to the latest stable standalone release, and verifies downloaded ZIP and DLL hashes against both the release notes and GitHub's ZIP digest. Requests use api.github.com and official GitHub release/CDN URLs; no settings or captures are uploaded. The official DLL retains its own hotkeys and optional diagnostics. Bundled engine source and notices accompany the package.
+
+ReShade/add-on conflicts and unrecognized DXGI proxies block installation. Migration preserves settings and backups while retiring owned custom-engine files. OFXR, headset files and runtime registrations are untouched. App updates still use the fixed WeSimGlide URLs and pinned release signatures. Legacy clients use internally routed compatibility releases before receiving the new payload; each signature and inventory is checked normally.
+
+WindowPlacement.json stores window position beside the app. Shortcut recording is local to its focused dialog, without global input hooks. Standard message-box centering briefly uses an activation hook restricted to the app's current UI thread; it does not monitor keyboard input or hook another process. It is removed on activation or disposal. No telemetry, capture/report upload, security exclusions or services are added.
+
+No Windows Authenticode signing or antivirus clearance is claimed. The behavior below documents the prior custom-engine release; the current graphics file list and GitHub discovery behavior are superseded by the paragraphs above. The signed updater, privilege and recovery safeguards remain applicable.
+
+## Historical v0.1.10 security description
 
 > Source repository: default source builds disable automatic official updates and use a separate local key when packaged with `scripts/dev_package.py`. The network/update behavior below describes official releases. Source builds are not claimed to reproduce official binaries byte for byte.
 

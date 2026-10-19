@@ -1,4 +1,14 @@
-# Graphics engine licensing
+# Official graphics DLL licensing
+
+Current v1.0.2.10 packages distribute IFreemz's official standalone dxgi.dll unmodified. **Glass Cockpit DLSS Fix by IFreemz**: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix
+
+The engine is GPL-3.0-only with its original NOTICE terms. LICENSE, NOTICE.md and README.txt are copied unchanged under licenses/IFreemz. No noncommercial restriction applies to this DLL. Its corresponding source and pinned dependencies are included in IFreemz-standalone-v1.0.1-source.zip, in both binary and application-source distributions. Pins and hashes are in standalone/official-engine-lock.json.
+
+The independent C# installer/settings/updater remains PolyForm Noncommercial. It copies files and edits the INI; it does not link or load the graphics engine. Installer branding does not imply upstream endorsement.
+
+## Historical custom engine and compatibility bridge
+
+The earlier custom engine and app-only compatibility bridge retain the following license boundaries and corresponding source. They are not the graphics payload installed by v1.0.2.10.
 
 The combined `StandaloneGlassGraphics.dll` is **GPL-3.0-only**, with the
 additional attribution and modified-version terms in `vendor/glass/NOTICE.md`.

@@ -1,3 +1,11 @@
+# Official DLL installer release
+
+Current v1.0.2.10 instructions are in [RELEASE-README.md](RELEASE-README.md), distributed as README.md in the release ZIP. The material below documents earlier packages.
+
+The current development branch uses IFreemz's unchanged official DLL. See [current test instructions, latest-release selection, checksum verification, ReShade conflicts and support](OFFICIAL-DLL-TEST.md). The normal Install/Update action uses the latest stable release; the version selector is for explicit rollback.
+
+The release history below describes previously published custom-engine packages.
+
 > Source builds are labeled **source build** and have official automatic app updates disabled. Use `python -B scripts/dev_package.py` to build an installable local package with your own key. The automatic-update instructions below describe official WeSimGlide binary releases.
 
 # Standalone-DLSS-Glass-Cockpit-Refresh v1.0.2

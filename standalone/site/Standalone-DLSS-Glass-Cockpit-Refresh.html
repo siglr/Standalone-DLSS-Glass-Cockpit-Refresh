@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d1524">
-  <meta name="description" content="Standalone DLSS Glass Cockpit Refresh for MSFS 2024. The glass-cockpit refresh fix with ReShade components included, simple installation, live controls and automatic app updates.">
+  <meta name="description" content="An independent installer and settings app for IFreemz's official standalone Glass Cockpit DLSS Fix. Simple installation, live settings, DLL version selection and automatic app updates for MSFS 2024.">
   <title>Glass Cockpit Refresh · WeSimGlide</title>
   <style>
     :root{color-scheme:dark;--bg:#0d1524;--alt:#121d31;--panel:#192336;--text:#f4f8ff;--muted:#bed0ec;--blue:#82afff;--hover:#9cc0ff;--line:rgba(168,194,235,.22);--green:#a6e4cc}
@@ -37,9 +37,9 @@
     <section class="hero" aria-labelledby="hero-title">
       <div>
         <p class="eyebrow">WeSimGlide · Tools for your next flight</p>
-        <div class="release"><span id="release-version">Community test release</span><span aria-hidden="true">/</span><span>MSFS 2024</span></div>
+        <div class="release"><span id="release-version">Official-DLL installer</span><span aria-hidden="true">/</span><span>MSFS 2024</span></div>
         <h1 id="hero-title">Clearer instruments.<br><span>Less setup.</span></h1>
-        <p class="lead"><span class="product-name">Standalone DLSS Glass Cockpit Refresh</span> brings IFreemz’s glass-cockpit refresh fix and the ReShade components it needs into one simple installer. Help reduce instrument ghosting with DLSS or FSR upscaling, on a monitor or in VR.</p>
+        <p class="lead"><span class="product-name">Standalone DLSS Glass Cockpit Refresh</span> installs IFreemz’s official standalone glass-cockpit fix and provides a simple settings window. Help reduce instrument ghosting with DLSS or FSR upscaling, on a monitor or in VR. Installer by siglr / WeSimGlide; official graphics DLL unchanged.</p>
         <a class="button" href="Standalone-DLSS-Glass-Cockpit-Refresh.zip" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>Download for Windows</a>
         <p class="download-meta">Complete ZIP <span id="release-size"></span> · Windows x64 · <a href="#install">Installation guide ↓</a> · <a href="#verify">Verify download</a></p>
       </div>
@@ -64,7 +64,7 @@
       </div>
     </section>
     <div class="highlights">
-      <div><strong>ReShade components included</strong><p>No separate ReShade installation or menu to configure.</p></div>
+      <div><strong>Official DLL, unchanged</strong><p>No separate ReShade installation. Release-note checksums verified.</p></div>
       <div><strong>Your normal MSFS launch</strong><p>Install once. Keep using your usual simulator shortcut.</p></div>
       <div><strong>Works alongside official OFXR</strong><p>Frame generation stays separate, with your own OFXR settings.</p></div>
     </div>
@@ -81,22 +81,23 @@
         <li><h3>Close MSFS &amp; install</h3><p>Open the extracted application:</p><code class="file-name">Standalone-DLSS-Glass-Cockpit-Refresh.exe</code><p>Check the automatically detected MSFS 2024 <strong>game folder</strong>, then click <strong>Install</strong>. Use <strong>Browse</strong> if needed, and approve a Windows administrator prompt only if the folder requires it. The folder must contain <code>FlightSimulator2024.exe</code>: Xbox calls it <strong>Content</strong>; Steam uses its game folder.</p></li>
         <li><h3>Start your next flight</h3><p>Launch MSFS as usual. Use <strong>DLSS or FSR upscaling</strong> in the simulator’s graphics settings.</p><p>Leave the glass fix enabled. Start with the author’s defaults, then compare on/off while parked in your favourite aircraft.</p></li>
       </ol>
-      <p class="small-note"><strong>Already using another glass-cockpit fix?</strong> Remove a duplicate glass fix first. If the installer finds conflicting mod files, review its backup-and-replace prompt before proceeding. <a href="#security">Windows blocked the app? See the help below.</a></p>
+      <p class="small-note"><strong>Already using another glass-cockpit fix?</strong> Remove the duplicate fix first using its own instructions. Detected ReShade/add-on conflicts and unknown DXGI proxies block installation. <a href="#security">Windows blocked the app? See the help below.</a></p>
     </section>
     <section id="operate" class="section operation" aria-labelledby="operate-title">
       <div class="operation-intro">
         <p class="eyebrow">Simple controls, even in VR</p>
         <h2 id="operate-title">Set it up.<br>Keep flying.</h2>
-        <p>Use the small control window to adjust the fix without leaving your VR session. No keyboard shortcuts to conflict with MSFS bindings.</p>
-        <p>You can close the window after choosing your settings. The fix stays active; the temporary green coverage tint switches off when the window closes.</p>
+        <p>Use the small control window to adjust settings without leaving VR. Its fixed-size window remembers its position and Dark/Light appearance.</p>
+        <p>You can close the app after choosing your settings. The official DLL keeps running. Green tint and diagnostics are available in its original in-sim settings window.</p>
         <div class="defaults" aria-label="Author defaults"><span>Smoothing 35</span><span>Extra OFF</span><span>UV seam fix ON</span><span>Dark screen fix OFF</span></div>
       </div>
       <dl class="controls">
         <div class="control"><dt>Enable / disable</dt><dd>Toggle <strong>Enable glass-cockpit refresh fix</strong>. The change applies while the simulator renders; this does not unload the mod.</dd></div>
-        <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing, or use the green tint briefly to see which screens are being corrected. Hover over controls for explanations.</dd></div>
+        <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing. Click the settings-window shortcut to record a new binding; it stays unchanged unless you save. Use it with MSFS focused to open the official settings window and its green-tint button. Default: Ctrl+Shift+F6.</dd></div>
         <div class="control"><dt>Advanced &amp;<br>Experimental</dt><dd>Fine-tune only when needed for a particular aircraft. Scroll Experimental for all options. Stable edges, full-size sampling and occlusion checking default to ON; temporal anti-aliasing, soft smoothing and calm glass default to OFF. Temporal anti-aliasing uses extra VRAM. Each tab has a reset button for the author’s defaults.</dd></div>
         <div class="control"><dt>Update</dt><dd>The app checks for new releases at launch and reopens after updating itself. If the files installed in MSFS also need updating, close MSFS and click <strong>Update</strong>. The button is greyed out when those DLLs already match. Your settings are kept.</dd></div>
         <div class="control"><dt>Uninstall</dt><dd>Close MSFS, reopen the app and click <strong>Uninstall</strong>. It removes the mod’s installed files and restores originals that it backed up. No manual DLL copying is needed.</dd></div>
+        <div class="control"><dt>DLL versions</dt><dd>Install/Update selects the latest official stable DLL. The version list offers up to ten verified releases for rollback. Both ZIP and DLL are checked against the author’s release-note SHA-256. Older versions can have known crashes; a listed version is not necessarily tested here.</dd></div>
       </dl>
     </section>
     <section id="verify" class="section" aria-labelledby="verify-title">
@@ -137,7 +138,7 @@
     <section id="source" class="section" aria-labelledby="source-title">
       <div class="section-heading"><h2 id="source-title">See how the mod works.</h2><p>Public source. Clear licensing.</p></div>
       <p>The standalone tool's source code is available on GitHub, including the launcher, installer, update verification, and the rendering components used by the glass fix. The repository includes build instructions, offline tests, upstream version information and a description of the app's security behavior.</p>
-      <p>You can inspect the code and build your own version. The separate installer/settings/updater app uses <strong>PolyForm Noncommercial 1.0.0</strong>. The combined graphics engine uses <strong>GPL-3.0-only</strong>, including my engine changes, with the original author's attribution terms; commercial redistribution of the engine is permitted under those terms. This is a modified, unofficial build based on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a>. ReShade and other dependencies retain their notices. Matching complete source accompanies each new release.</p>
+      <p>You can inspect the code and build your own version. The separate installer/settings/updater app uses <strong>PolyForm Noncommercial 1.0.0</strong>. The <strong>unchanged official standalone DLL</strong> of <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a> uses <strong>GPL-3.0-only</strong> with its original NOTICE terms; commercial redistribution of that engine is permitted under those terms. This installer is independently maintained by siglr / WeSimGlide. The official engine’s corresponding source and notices are included, alongside the application-source download.</p>
       <p><a class="button secondary" href="https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh">View source on GitHub &#8599;</a> <a id="source-download" class="button secondary" hidden>Download matching source ZIP</a></p>
       <p class="small-note">Publishing source makes the app easier to inspect. It does not certify the download as safe or guarantee antivirus clearance. A local source build is not claimed to be byte-for-byte identical to the official download; development builds use their own signing key and have automatic official updates disabled. For normal installation, use the complete ZIP linked above.</p>
     </section>
@@ -146,12 +147,16 @@
       <p class="help-intro">Installation help, compatibility and what to try if something goes wrong. For Windows warnings, check whether the message is about app reputation or an antivirus detection before deciding what to allow.</p>
       <div class="accordion">
         <details>
+          <summary>Is there a known limitation with Dark screen fix?</summary>
+          <div class="answer"><p>With the bundled official v1.0.1 DLL, optional <strong>Dark screen fix ON</strong> reproduced incorrect glare on a newly recognized dark screen in an offline test. The author’s default remains <strong>OFF</strong>. If affected, turn that option off. This package preserves the official DLL unchanged; real aircraft and headset testing is still necessary.</p></div>
+        </details>
+        <details>
           <summary>Something is wrong or MSFS crashes. How do I get support?</summary>
           <div class="answer">
-            <p><strong>First compare with the original mod, installed and configured the original way through ReShade.</strong> This helps identify whether the problem is in the original fix or this standalone package.</p>
-            <ol><li>Close MSFS and use this app’s <strong>Uninstall</strong> button. Keep this package uninstalled during the comparison; turning its checkbox off does not fully unload it.</li><li>Install <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#installation">IFreemz’s original Glass Cockpit DLSS Fix through ReShade</a>, following the author’s installation instructions. Configure it through the <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#settings">original ReShade settings menu</a>, then try the same aircraft and situation.</li><li><strong>If the original mod works but this package does not, contact me on the WSG Discord.</strong> You can find the Discord link on the <a href="https://wesimglide.org/">WeSimGlide website</a>. Tell me that you tested the original ReShade version and explain what worked differently.</li><li>If the problem also occurs with the original add-on, follow the author’s <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#troubleshooting">troubleshooting and bug-report instructions</a> and <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/issues">report it to the original author</a>.</li></ol>
-            <p>For crashes, also test MSFS without either fix. If it still crashes, investigate the simulator, drivers and other add-ons first; that result does not establish a bug in the glass fix.</p>
-            <p>Include the mod version, aircraft, desktop or VR setup, DLSS/FSR settings, frame generation, other add-ons and the steps that reproduce the crash.</p>
+            <p><strong>The installer and settings app are by siglr / WeSimGlide.</strong> Installation, update, rollback and app-window questions go to <a href="https://github.com/siglr/Standalone-DLSS-Glass-Cockpit-Refresh/issues">the installer’s issue tracker</a> or me on the WSG Discord linked from <a href="https://wesimglide.org/">WeSimGlide</a>.</p>
+            <p><strong>Using the official-DLL version?</strong> Screen problems or crashes reproduced with IFreemz’s <em>unmodified official standalone release</em> can be reported to <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/issues">IFreemz on GitHub</a>. Include the official DLL version, aircraft, DLSS/FSR settings, desktop/VR setup and reproduction steps; ideally include a <strong>Ctrl+Shift+F8 capture</strong> following the <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#troubleshooting">author’s instructions</a>. The installer’s app version and the official DLL version are separate.</p>
+            <p><strong>Using the earlier custom-engine package (v1.0.2 or earlier)?</strong> Contact me first. To compare, close MSFS, uninstall this package, then install/configure the original add-on through ReShade. If the issue also occurs there, report that original-mod reproduction to IFreemz. Do not report a modified engine as an official release.</p>
+            <p><strong>Use one glass fix only.</strong> Do not combine the standalone DLL with the ReShade add-on or another tool bundling the fix, such as OptiShade. For crashes, also test without the fix; a crash that persists does not establish a bug in the glass fix.</p>
           </div>
         </details>
         <details>
@@ -160,7 +165,7 @@
         </details>
         <details>
           <summary>Does this work with Microsoft Flight Simulator 2020?</summary>
-          <div class="answer"><p><strong>No. This package supports MSFS 2024 only.</strong> The original add-on targets MSFS 2024’s cockpit rendering; packaging it with ReShade components does not add MSFS 2020 support.</p><p>MSFS 2020 compatibility is outside this package’s scope. There is no installer setting or DLSS preset that enables it. <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#requirements">Original mod requirements.</a></p></div>
+          <div class="answer"><p><strong>No. This package supports MSFS 2024 only.</strong> The original add-on targets MSFS 2024’s cockpit rendering; the standalone DLL does not add MSFS 2020 support.</p><p>MSFS 2020 compatibility is outside this package’s scope. There is no installer setting or DLSS preset that enables it. <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix#requirements">Original mod requirements.</a></p></div>
         </details>
         <details id="security">
           <summary>Windows SmartScreen says “Windows protected your PC”</summary>
@@ -182,15 +187,15 @@
         </details>
         <details>
           <summary>Do I need ReShade, OFXR, or a particular headset?</summary>
-          <div class="answer"><p><strong>ReShade:</strong> the required components are built in. A separate full ReShade installation is not required. If you already use ReShade in MSFS, use <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases">the original Glass Cockpit DLSS Fix add-on</a> instead of this standalone package.</p><p><strong>OFXR:</strong> this package does not generate frames. If you want frame generation too, install and run the <a href="https://github.com/djules75/OFXR-Bridge/releases">official OFXR Bridge</a> separately, using settings suitable for your hardware. This mod does not change those settings.</p><p><strong>Headsets:</strong> the fix is not restricted to a Pimax headset or runtime. It targets MSFS 2024’s D3D12 upscaling path for desktop and VR. Other headset/runtime combinations are not all validated; test on your own setup. Instrument results can vary by aircraft and upscaler.</p><p><strong>Requirements:</strong> Windows x64, MSFS 2024 with DLSS or FSR upscaling, and the Microsoft Visual C++ x64 runtime needed by the DLLs. The control app uses Windows’ .NET Framework.</p></div>
+          <div class="answer"><p><strong>ReShade:</strong> this package uses the official standalone DLL. A separate full ReShade installation is not required. If you already use ReShade in MSFS, use <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases">the original Glass Cockpit DLSS Fix add-on</a> instead of this standalone package.</p><p><strong>OFXR:</strong> this package does not generate frames. If you want frame generation too, install and run the <a href="https://github.com/djules75/OFXR-Bridge/releases">official OFXR Bridge</a> separately, using settings suitable for your hardware. This mod does not change those settings.</p><p><strong>Headsets:</strong> the fix is not restricted to a Pimax headset or runtime. It targets MSFS 2024’s D3D12 upscaling path for desktop and VR. Other headset/runtime combinations are not all validated; test on your own setup. Instrument results can vary by aircraft and upscaler.</p><p><strong>Requirements:</strong> Windows x64, MSFS 2024 with DLSS or FSR upscaling, and the Microsoft Visual C++ x64 runtime needed by the DLLs. The control app uses Windows’ .NET Framework.</p></div>
         </details>
         <details>
           <summary>Do updates need an uninstall and reinstall?</summary>
-          <div class="answer"><p><strong>No, not for a normal update.</strong> From v0.1.4 onward, the app checks for updates at launch. It downloads and verifies a newer package, closes briefly, then reopens itself. If the server is unavailable, the current app remains usable.</p><p>An app-only update does not need to change files in MSFS. If the simulator DLLs differ, the app enables <strong>Update</strong>; close MSFS before clicking it. Installed settings and original uninstall backups are kept. An interrupted update can also offer recovery through Update.</p><p>Coming from v0.1.3 or earlier? Close the control window and extract the complete current ZIP over your external mod folder once. Then open the new EXE. Keep your settings backups and <code>SimulatorDirectory.txt</code>.</p></div>
+          <div class="answer"><p><strong>No, not for a normal update.</strong> From v0.1.4 onward, the app checks for updates at launch. It downloads and verifies a newer package, closes briefly, then reopens itself. Older apps may reopen more than once while compatibility updates are applied. If the server is unavailable, the current app remains usable.</p><p>An app-only update does not need to change files in MSFS. If the simulator DLLs differ, the app enables <strong>Update</strong>; close MSFS before clicking it. Installed settings and original uninstall backups are kept. An interrupted update can also offer recovery through Update.</p><p>Coming from v0.1.3 or earlier? Close the control window and extract the complete current ZIP over your external mod folder once. Then open the new EXE. Keep your settings backups and <code>SimulatorDirectory.txt</code>.</p></div>
         </details>
         <details>
           <summary>What gets installed in the MSFS Content folder?</summary>
-          <div class="answer"><p>The installer adds <code>dxgi.dll</code>, <code>StandaloneGlassGraphics.dll</code> and <code>StandaloneGlass.ini</code>, plus an installation receipt and any needed backups. Existing conflicting mod files are replaced only after confirmation and are backed up for Uninstall.</p><p>It does not edit original MSFS binaries, headset files, OFXR settings or OpenXR registrations. Settings backups stay beside the external app; diagnostic logs can remain after uninstall. Unexpectedly changed files are preserved for review rather than silently removed.</p></div>
+          <div class="answer"><p>The installer adds the official <code>dxgi.dll</code> and <code>glass-cockpit-dlss-fix.ini</code>, plus its installation receipt and any needed backups. Migrating from the earlier custom engine removes its owned legacy files while preserving settings and uninstall backups. ReShade/add-on conflicts and unknown DXGI proxies block installation.</p><p>It does not edit original MSFS binaries, headset files, OFXR settings or OpenXR registrations. Settings backups stay beside the external app; original DLL diagnostics can remain after uninstall. Unexpectedly changed files are preserved for review rather than silently removed.</p></div>
         </details>
       </div>
     </section>
@@ -199,7 +204,7 @@
       <a class="button secondary" href="https://wesimglide.org/?tab=about">Contribute to WeSimGlide ↗</a>
     </section>
   </main>
-  <footer><div class="wrap footer-inner"><p>Built on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a> and <a href="https://github.com/crosire/reshade">ReShade by crosire</a>. Upstream licenses are included in the ZIP.<br>Community test release. Results vary by aircraft and setup. <a href="Standalone-DLSS-Glass-Cockpit-Refresh.version.json">Release information</a></p><a class="footer-home" href="https://wesimglide.org/">Back to WeSimGlide ↗</a></div></footer>
+  <footer><div class="wrap footer-inner"><p>Built on <a href="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix">Glass Cockpit DLSS Fix by IFreemz</a> and <a href="https://github.com/crosire/reshade">ReShade by crosire</a>. Upstream licenses are included in the ZIP.<br>Official-DLL installer. Results vary by aircraft and setup. <a href="Standalone-DLSS-Glass-Cockpit-Refresh.version.json">Release information</a></p><a class="footer-home" href="https://wesimglide.org/">Back to WeSimGlide ↗</a></div></footer>
   <script>
     // All file hashing happens locally. No file bytes are sent to the server.
     (async function () {
@@ -213,19 +218,19 @@
         if (!response.ok) throw new Error('Release information unavailable');
         const release = await response.json();
         if (release.schema !== 1 || release.product !== 'Standalone-DLSS-Glass-Cockpit-Refresh' || !/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(release.version) || !/^[0-9a-f]{64}$/i.test(release.sha256) || !Number.isSafeInteger(release.size) || release.size <= 0 || release.size > 67108864) throw new Error('Invalid release information');
-        if (release.source === release.product + '-' + release.version + '-source.zip') {
+        if (release.source === release.product + '-source.zip') {
           const source = document.getElementById('source-download'); source.href = release.source; source.hidden = false;
         }
-        document.getElementById('release-version').textContent = 'v' + release.version + ' · Community test release';
+        document.getElementById('release-version').textContent = 'v' + release.version + ' · Official-DLL installer';
         document.getElementById('release-size').textContent = '· ' + (release.size < 1048576 ? Math.ceil(release.size / 1024) + ' KB' : (release.size / 1048576).toFixed(1) + ' MB');
         document.getElementById('hash-version').textContent = 'Published ZIP · v' + release.version + ' · ' + release.size.toLocaleString() + ' bytes';
         document.getElementById('zip-hash').textContent = release.sha256.toLowerCase();
         const scan = document.getElementById('zip-scan');
         scan.href = 'https://www.virustotal.com/gui/file/' + release.sha256.toLowerCase() + '/detection'; scan.hidden = false;
-        // Older feeds have no version-specific file list; avoid a broken link during transition.
+        // Older feeds have no file list; avoid a broken link during transition.
         if (release.signature && release.keyId) {
           const details = document.getElementById('hash-details');
-          details.href = release.product + '-' + release.version + '.hashes.json'; details.hidden = false;
+          details.href = release.product + '.hashes.json'; details.hidden = false;
           document.getElementById('scan-separator').hidden = false;
         }
         if (!window.crypto || !window.crypto.subtle) {

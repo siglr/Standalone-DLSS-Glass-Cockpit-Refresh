@@ -78,11 +78,10 @@ try:
  # Malicious receipt cannot escape the fixed payload list.
  saved=receipt.read_bytes();bad=json.loads(saved);bad['files']['../escape.dll']='0'*64;receipt.write_text(json.dumps(bad));before=snapshot(p)
  run(p,'uninstall',code=1);assert snapshot(p)==before;receipt.write_bytes(saved);run(p,'uninstall')
- # Actual production UI uses native discovery, with inert marker files and no network.
+ # This suite deliberately uses the historical three-file payload. Current UI coverage
+ # uses the official layout in official_engine_tests.py and release_migration_tests.py.
  (p/'dxgi.dll').unlink()
  run(p);ini=(ROOT/'standalone/StandaloneGlass.ini').read_bytes();(p/'StandaloneGlass.ini').write_bytes(ini)
- (p/'CONTROL-TEST-ONLY').write_text('fixture');shutil.copy2(ROOT/'build/standalone/control'/exe,package/exe)
- subprocess.run([str(package/exe),'--self-test',str(p),str(ROOT/'build/standalone-window-preview.png')],check=True,timeout=30)
  assert (p/'StandaloneGlass.ini').read_bytes()==ini and (p/'ofxr_bridge.ini').read_bytes()==b'original OFXR settings'
- print(f'PASS: {count} native installer operations, signed payloads, rollback, interrupted/legacy recovery, settings, backups and production UI')
+ print(f'PASS: {count} native installer operations, signed payloads, rollback, interrupted/legacy recovery, settings and backups')
 finally:cleanup_fixture(work)

@@ -3,9 +3,10 @@ from pathlib import Path
 import math
 import re
 import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[1]
-fixture = root / 'build/standalone/fixture/Release/FlightSimulator2024.exe'
+fixture = Path(sys.argv[1]).resolve() if len(sys.argv)>1 else root / 'build/standalone/fixture/Release/FlightSimulator2024.exe'
 results = {}
 for mode in ('taa-ls0', 'gauss-ls35', 'still-occluder', 'still-dim-atlas', 'still-swap', 'still-blank', 'still-windows'):
     run = subprocess.run([str(fixture), '--motion', '--only', mode], cwd=fixture.parent,

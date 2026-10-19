@@ -1,4 +1,8 @@
-# Glass v1.0.1 integration
+# Official DLL distribution
+
+The current trial uses the unmodified official standalone DLL, pinned separately in [official-engine-lock.json](official-engine-lock.json). Its source commit is `e8a26fa9b99dba6b74213e999f871da933384da0`, not the add-on tag below. See [comparison](../docs/OFFICIAL-DLL-COMPARISON.md), [upstream report](../docs/IFREEMZ-ENHANCEMENTS.md) and [test-package instructions](OFFICIAL-DLL-TEST.md).
+
+# Historical custom Glass v1.0.1 integration
 
 Source: https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/releases/tag/v1.0.1
 Commit: fabb8cef17595e8c521595023cfe85ecef33e8c0.
