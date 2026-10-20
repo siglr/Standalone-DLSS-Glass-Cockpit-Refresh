@@ -43,6 +43,7 @@ internal sealed class GlassSettingsPanel : UserControl
     readonly Label shortcutHint=new WsgLabel { Text="Click the shortcut to change it.",AutoSize=true };
     readonly Label reshadeGuide=new WsgLabel { Text="Use the Glass Cockpit DLSS Fix panel in ReShade.",AutoSize=true };
     internal bool ReShadeMode;
+    internal bool ShortcutRequiresUpdate;
     bool refreshing;
     readonly Button resetGlass, resetAdvanced, resetExperimental;
 
@@ -190,12 +191,13 @@ internal sealed class GlassSettingsPanel : UserControl
     }
     void RefreshShortcut() {
         windowShortcut.Visible=!ReShadeMode;reshadeGuide.Visible=ReShadeMode;
-        windowShortcut.Enabled=!ReShadeMode;windowShortcut.Text=ReadWindowShortcut();
+        windowShortcut.Enabled=!ReShadeMode&&!ShortcutRequiresUpdate;windowShortcut.Text=ReadWindowShortcut();
         shortcutLabel.Text=ReShadeMode?"In-flight settings":"Settings window shortcut";
-        shortcutHint.Text=ReShadeMode?"Close MSFS to edit here. Use ReShade during a flight.":"Click the shortcut to change it.";
+        shortcutHint.Text=ReShadeMode?"Close MSFS to edit here. Use ReShade during a flight.":
+            ShortcutRequiresUpdate?"Update the official DLL to v1.0.2 or newer in Setup to change this shortcut.":"Click the shortcut to change it.";
     }
     void SaveWindowShortcut(string shortcut) {
-        if(!Enabled||ReShadeMode)return;
+        if(!Enabled||ReShadeMode||ShortcutRequiresUpdate)return;
         string key=SettingsWindowShortcut.Normalize(shortcut);
         if(!File.Exists(ini()) || !WritePrivateProfileString("hotkeys","settings_window",key,ini()))
             throw new IOException("Could not save the shortcut. Check settings file write access.");
@@ -259,7 +261,12 @@ internal sealed class GlassSettingsPanel : UserControl
     }
     internal void SelfTest(string preview) {
         byte[] original = File.ReadAllBytes(ini());
+        bool requiresUpdate=ShortcutRequiresUpdate;
         try {
+            ShortcutRequiresUpdate=true;RefreshValues(true);SaveWindowShortcut("Ctrl+Enter");
+            if(windowShortcut.Enabled||Convert.ToBase64String(original)!=Convert.ToBase64String(File.ReadAllBytes(ini())))
+                throw new Exception("Older DLL must not accept current-version shortcut edits");
+            ShortcutRequiresUpdate=false;
             foreach(string sample in new[]{"Ctrl+5","Pause","ScrollLock","F13","F24","Ctrl+Shift+F6","Alt+Num0","Shift+PageDown","Ctrl+Shift+Alt+F11"})
                 if(SettingsWindowShortcut.Normalize(sample)!=sample)throw new Exception("Supported shortcut rejected: "+sample);
             if(SettingsWindowShortcut.Normalize(" control + shift + f06 ")!="Ctrl+Shift+F6")throw new Exception("Shortcut normalization failed");
@@ -304,6 +311,11 @@ internal sealed class GlassSettingsPanel : UserControl
             if(future.ToString()!="KeepMe")throw new Exception("Shortcut save changed unrelated key");
             try { SaveWindowShortcut("Alt+F4");throw new Exception("Unsafe shortcut saved"); } catch(ArgumentException) { }
             if(ReadWindowShortcut()!="Pause")throw new Exception("Rejected shortcut changed INI");
+            foreach(string shortcut in new[]{"Ctrl+Tab","Shift+Enter","Alt+Up","Ctrl+NumPlus","Ctrl+;","Ctrl+\\","Ctrl+<>"}) {
+                SaveWindowShortcut(shortcut);
+                if(ReadWindowShortcut()!=shortcut)throw new Exception("New official shortcut did not round-trip through INI: "+shortcut);
+            }
+            SaveWindowShortcut("Pause");
             RefreshShortcut();
             foreach (var item in switches) {
                 item.Value.Checked = !(bool)item.Value.Tag;
@@ -336,7 +348,7 @@ internal sealed class GlassSettingsPanel : UserControl
                 SelectedIndex = i; Application.DoEvents(); var form = FindForm();
                 using (var b = new Bitmap(form.Width, form.Height)) { form.DrawToBitmap(b, new Rectangle(0, 0, form.Width, form.Height)); b.Save(preview + ".glass-" + i + ".png"); }
             }
-        } finally { File.WriteAllBytes(ini(), original); SelectedIndex = 0; RefreshValues(true); }
+        } finally { File.WriteAllBytes(ini(), original); ShortcutRequiresUpdate=requiresUpdate;SelectedIndex = 0; RefreshValues(true); }
     }
 }
 
@@ -365,11 +377,14 @@ internal sealed class ShortcutRecorder : Form
         Deactivate+=delegate { if(DialogResult==DialogResult.None) { DialogResult=DialogResult.Cancel; Close(); } };
     }
     protected override bool ProcessCmdKey(ref Message msg,Keys keyData) {
-        // Tab stays available for keyboard navigation to Save/Cancel.
-        if((keyData & Keys.KeyCode)==Keys.Tab)return base.ProcessCmdKey(ref msg,keyData);
         if((GetKeyState(0x5B)&0x8000)!=0 || (GetKeyState(0x5C)&0x8000)!=0) { RecordKey(Keys.LWin);return true; }
+        return CaptureKey(keyData)||base.ProcessCmdKey(ref msg,keyData);
+    }
+    internal bool CaptureKey(Keys keyData) {
+        // Plain Tab navigates. Modified Tab/Enter are supported shortcut keys.
+        if(keyData==Keys.Tab)return false;
         if(keyData==Keys.Enter && ((Control)CancelButton).ContainsFocus) { CancelButton.PerformClick();return true; }
-        if(keyData==Keys.Space && (save.ContainsFocus || ((Control)CancelButton).ContainsFocus))return base.ProcessCmdKey(ref msg,keyData);
+        if(keyData==Keys.Space && (save.ContainsFocus || ((Control)CancelButton).ContainsFocus))return false;
         RecordKey(keyData);return true;
     }
     internal void RecordKey(Keys keys) {
@@ -380,17 +395,7 @@ internal sealed class ShortcutRecorder : Form
             if(Shortcut==null)recorded.Text="Press the next key…";return;
         }
         Shortcut=null;save.Enabled=false;
-        string name=null;
-        if(key>=Keys.F1 && key<=Keys.F24)name="F"+((int)key-(int)Keys.F1+1);
-        else if(key>=Keys.A && key<=Keys.Z)name=key.ToString();
-        else if(key>=Keys.D0 && key<=Keys.D9)name=((int)key-(int)Keys.D0).ToString();
-        else if(key>=Keys.NumPad0 && key<=Keys.NumPad9)name="Num"+((int)key-(int)Keys.NumPad0);
-        else switch(key) {
-            case Keys.Insert:name="Insert";break;case Keys.Delete:name="Delete";break;
-            case Keys.Home:name="Home";break;case Keys.End:name="End";break;
-            case Keys.PageUp:name="PageUp";break;case Keys.PageDown:name="PageDown";break;
-            case Keys.Pause:name="Pause";break;case Keys.Scroll:name="ScrollLock";break;case Keys.Space:name="Space";break;
-        }
+        string name=SettingsWindowShortcut.KeyName(key);
         try {
             if(name==null)throw new ArgumentException("Try Ctrl + a key, Pause, ScrollLock or F13–F24.");
             Shortcut=SettingsWindowShortcut.Normalize(((keys&Keys.Control)!=0?"Ctrl+":"")+((keys&Keys.Shift)!=0?"Shift+":"")+((keys&Keys.Alt)!=0?"Alt+":"")+name);
@@ -399,9 +404,29 @@ internal sealed class ShortcutRecorder : Form
     }
 }
 
-// INI syntax accepted by the official v1.0.1 DLL. No key hooks or simulated input.
+// Official v1.0.2 INI syntax. OEM punctuation uses the author's US-layout key names,
+// even when a different keyboard layout prints a different character on that key.
 internal static class SettingsWindowShortcut
 {
+    static readonly Dictionary<Keys,string> namedKeys=new Dictionary<Keys,string> {
+        {Keys.Insert,"Insert"},{Keys.Delete,"Delete"},{Keys.Home,"Home"},{Keys.End,"End"},
+        {Keys.PageUp,"PageUp"},{Keys.PageDown,"PageDown"},{Keys.Pause,"Pause"},
+        {Keys.Scroll,"ScrollLock"},{Keys.Space,"Space"},{Keys.Tab,"Tab"},
+        {Keys.Back,"Backspace"},{Keys.Enter,"Enter"},{Keys.Up,"Up"},{Keys.Down,"Down"},
+        {Keys.Left,"Left"},{Keys.Right,"Right"},{Keys.Multiply,"Num*"},{Keys.Add,"NumPlus"},
+        {Keys.Subtract,"Num-"},{Keys.Decimal,"Num."},{Keys.Divide,"Num/"},
+        {Keys.OemSemicolon,";"},{Keys.Oemplus,"="},{Keys.Oemcomma,","},{Keys.OemMinus,"-"},
+        {Keys.OemPeriod,"."},{Keys.OemQuestion,"/"},{Keys.Oemtilde,"`"},
+        {Keys.OemOpenBrackets,"["},{Keys.OemPipe,"\\"},{Keys.OemCloseBrackets,"]"},
+        {Keys.OemQuotes,"'"},{Keys.OemBackslash,"<>"}
+    };
+    internal static string KeyName(Keys key) {
+        if(key>=Keys.F1&&key<=Keys.F24)return "F"+((int)key-(int)Keys.F1+1);
+        if(key>=Keys.A&&key<=Keys.Z)return key.ToString();
+        if(key>=Keys.D0&&key<=Keys.D9)return ((int)key-(int)Keys.D0).ToString();
+        if(key>=Keys.NumPad0&&key<=Keys.NumPad9)return "Num"+((int)key-(int)Keys.NumPad0);
+        string name;return namedKeys.TryGetValue(key,out name)?name:null;
+    }
     internal static string Normalize(string input) {
         if(input==null || input.Length>63)throw new ArgumentException("Enter a shortcut such as Ctrl+5, Pause or F13.");
         string[] parts=input.Split('+');
@@ -419,12 +444,14 @@ internal static class SettingsWindowShortcut
         if(key.Length==1 && ((key[0]>='A' && key[0]<='Z') || (key[0]>='0' && key[0]<='9')))name=key;
         else if(key.Length>=2 && key[0]=='F' && System.Text.RegularExpressions.Regex.IsMatch(key.Substring(1),"^[0-9]+$") && int.TryParse(key.Substring(1),out function) && function>=1 && function<=24)name="F"+function;
         else if(key.Length==4 && key.StartsWith("NUM") && key[3]>='0' && key[3]<='9')name="Num"+key[3];
-        else foreach(string named in new[]{"Insert","Delete","Home","End","PageUp","PageDown","Pause","ScrollLock","Space"})
+        else foreach(string named in namedKeys.Values)
             if(string.Equals(key,named,StringComparison.OrdinalIgnoreCase)) { name=named;break; }
         if(name==null)throw new ArgumentException("Unsupported key. Try Ctrl+5, Pause, ScrollLock or F13-F24.");
         if(ctrl && shift && !alt && function>=7 && function<=12)
             throw new ArgumentException("Ctrl+Shift+F7 through F12 are reserved for the fix's own controls.");
         if(alt && !ctrl && !shift && function==4)throw new ArgumentException("Alt+F4 closes MSFS. Choose another shortcut.");
+        if(alt && !ctrl && !shift && (name=="Tab"||name=="Space"||name=="Enter"))
+            throw new ArgumentException("Windows uses Alt+Tab, Alt+Space and Alt+Enter. Choose another shortcut.");
         if(!ctrl && !shift && !alt && !(function>=13 && function<=24) && name!="Pause" && name!="ScrollLock")
             throw new ArgumentException("This key needs Ctrl, Shift or Alt. Single-key options are Pause, ScrollLock and F13-F24.");
         return (ctrl ? "Ctrl+":"")+(shift ? "Shift+":"")+(alt ? "Alt+":"")+name;

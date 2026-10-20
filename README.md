@@ -2,6 +2,8 @@
 
 Development preview **1.0.2.15** opens Setup once per session when a newer official release is verified for the installed mode, with an accented **Update to v…** button. Explicit rollback choices, active dialogs and operations defer this navigation. Official graphics v1.0.2 retains the verified settings format, so the app's settings remain available after updating. This preview is not a published release.
 
+The shortcut recorder requires official DLL v1.0.2 or newer and follows its current rules, including modified arrows, Tab, Enter, Backspace, numpad operators and punctuation. Plain Tab navigates; plain Enter saves the captured shortcut; Esc cancels. Windows-reserved combinations remain blocked. Existing shortcuts are preserved. Run `python -B tests/shortcut_recorder_tests.py` for the key-capture checks.
+
 Choose **Standalone DLL** or **ReShade add-on** in Setup. Settings contains the enable control, standalone shortcut recorder, smoothing and expandable Advanced/Experimental sections. Downloads are verified; settings and OFXR are preserved. [Full product description](standalone/RELEASE-DESCRIPTION.md).
 
 Current user instructions: [RELEASE-README.md](standalone/RELEASE-README.md). The independent WeSimGlide installer uses IFreemz's unchanged official DLL, preserving the author's defaults and OFXR settings. [Release notes](standalone/RELEASE-NOTES.md) include the known optional dark-screen limitation. [Production packaging and legacy update migration](standalone/PUBLISHING.md) require explicit signing configuration. The custom-engine instructions below are historical.

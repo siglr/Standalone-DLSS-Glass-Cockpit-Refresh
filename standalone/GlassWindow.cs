@@ -426,6 +426,7 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         browse.Enabled=!busy; enabled.Enabled=!busy && complete && knownSettings&&!addonRunning;
         engineVersions.Enabled=!busy;
         glass.ReShadeMode=complete?installedAddon:AddonMode;
+        glass.ShortcutRequiresUpdate=complete&&!installedAddon&&(installed.engineVersion=="1.0.0"||installed.engineVersion=="1.0.1");
         emptySettings.Visible=!complete;enabled.Visible=complete;glass.Visible=complete;note.Visible=complete&&note.Text.Length>0;
         glass.RefreshValues(!busy && complete && knownSettings&&!addonRunning,complete&&knownSettings);
         RefreshCompatibility();
@@ -668,6 +669,7 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
             var updated=CurrentReceipt();updated.engineVersion="1.0.2";
             File.WriteAllText(Receipt,new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(updated));RefreshState();
             Check(glass.Enabled==!(addon&&SimulatorRunning()),"Official 1.0.2 settings must remain editable");
+            Check(!glass.ShortcutRequiresUpdate,"Official 1.0.2 must allow current shortcut rules");
         } finally { File.WriteAllBytes(Receipt,receipt);RefreshState(); }
         Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"Update discovery wrote simulator settings");
         // Invalid receipts and interrupted transactions must stay on Setup without a crash.
