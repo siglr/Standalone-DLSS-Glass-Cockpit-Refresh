@@ -13,11 +13,11 @@ using System.Web.Script.Serialization;
 internal static class UpstreamRelease
 {
     internal const string Repository="https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix";
-    internal const string Version="1.0.1";
-    internal const string ZipHash="345dc3b760f2750346c986e87faa0900e9f17eeee85a3ceab95caf96aa954281";
-    internal const string DllHash="06f11b0abeb4d3a9b1a14b7ec22faf6de214c8f218353f1e062471015db2a685";
+    internal const string Version="1.0.2";
+    internal const string ZipHash="010abd02f3b25f35fe06ff7376ce43920ef808fbf6afe5c0b100a20785d1eb94";
+    internal const string DllHash="5b505a00e5a072f6c2a9b37a6f19800f248850ace6fc51dcb802c0043a560d03";
     internal const string AddonName="glass-cockpit-dlss-fix.addon64";
-    internal const string AddonHash="a637456d2a93780ccfea73043f428e4f2a0f5f009423a3ca22b694b198565517";
+    internal const string AddonHash="9474b66e2e22bc005233463574fc9ba9c107d4bfa8364e5c3478588f0e8f2036";
     internal sealed class Asset { public string name {get;set;} public string digest {get;set;} public string browser_download_url {get;set;} public long size {get;set;} }
     internal sealed class Release { public long id {get;set;} public string tag_name {get;set;} public string body {get;set;} public bool draft {get;set;} public bool prerelease {get;set;} public Asset[] assets {get;set;} }
     internal sealed class Choice {

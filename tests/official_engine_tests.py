@@ -63,7 +63,7 @@ try:
     run('archive',write('separate-hashes.json',separate),base/'official.zip')
     wrong_dll=copy.deepcopy(real);wrong_dll['body']=notes(lock['zipSha256'],'0'*64)
     run('archive',write('wrong-dll-hash.json',wrong_dll),base/'official.zip',code=1)
-    assert run('archive',metadata,base/'official.zip').stdout.strip()=='06f11b0abeb4d3a9b1a14b7ec22faf6de214c8f218353f1e062471015db2a685'
+    assert run('archive',metadata,base/'official.zip').stdout.strip()==lock['dllSha256']
     badzip=work/'bad.zip';badzip.write_bytes((base/'official.zip').read_bytes()+b'changed');run('archive',metadata,badzip,code=1)
     for layout in ('traversal','duplicate','no-license','not-dll','wrong-machine'):
         with zipfile.ZipFile(base/'official.zip') as archive:files={n:archive.read(n) for n in archive.namelist()}
@@ -81,7 +81,7 @@ try:
     package=work/'new'
     with zipfile.ZipFile(base/'Standalone-DLSS-Glass-Cockpit-Refresh-test.zip') as archive:
         assert not any(n.endswith(('.dpapi','.key','.pfx','.pem')) for n in archive.namelist())
-        assert {'licenses/IFreemz/LICENSE','licenses/IFreemz/NOTICE.md','Source code/IFreemz-standalone-v1.0.1-source.zip','Source code/IFreemz-addon-v1.0.1-source.zip'}<=set(archive.namelist())
+        assert {'licenses/IFreemz/LICENSE','licenses/IFreemz/NOTICE.md','Source code/IFreemz-standalone-v1.0.2-source.zip','Source code/IFreemz-addon-v1.0.2-source.zip'}<=set(archive.namelist())
         archive.extractall(package)
     game=work/'game';game.mkdir();(game/'FlightSimulator2024.exe').write_bytes(b'INERT MARKER');(game/'ofxr_bridge.ini').write_bytes(b'OFXR settings unchanged\x00\xff')
     baseline=snapshot(game)

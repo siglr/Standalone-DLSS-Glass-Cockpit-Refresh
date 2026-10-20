@@ -622,7 +622,7 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
     int TestPages(string target,string preview,bool addon) {
         Check(File.Exists(Path.Combine(target,"CONTROL-TEST-ONLY")),"Missing fixture marker");
         folder.Text=target;RefreshState();RestorePage();
-        latestEngine=new UpstreamRelease.Choice { Id=416640528,Tag="v1.0.1",Sha256=addon?UpstreamRelease.AddonHash:UpstreamRelease.ZipHash,Addon=addon };
+        latestEngine=new UpstreamRelease.Choice { Id=418162749,Tag="v"+UpstreamRelease.Version,Sha256=addon?UpstreamRelease.AddonHash:UpstreamRelease.ZipHash,Addon=addon };
         PopulateEngineChoices(new[]{latestEngine});
         StartPosition=FormStartPosition.Manual;Location=new Point(-10000,-10000);ShowInTaskbar=false;Show();Application.DoEvents();
         SelectPage("Settings",false);RefreshState();Preview(preview+".initial.png");
@@ -633,9 +633,9 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         byte[] originalIni=File.ReadAllBytes(Ini),receipt=File.ReadAllBytes(Receipt);
         // Discovery must draw attention once, without stealing navigation on each timer tick.
         var currentRelease=latestEngine;
-        var updateRelease=new UpstreamRelease.Choice { Id=43,Tag="v1.0.2",Sha256=new string('c',64),Addon=addon };
+        var updateRelease=new UpstreamRelease.Choice { Id=43,Tag="v1.0.3",Sha256=new string('c',64),Addon=addon };
         latestEngine=updateRelease;SelectPage("Settings",true);RefreshState();
-        Check(currentPage=="Setup"&&install.Enabled&&install.Text=="Update to v1.0.2","New official release must open Setup with a clear update action");
+        Check(currentPage=="Setup"&&install.Enabled&&install.Text=="Update to v1.0.3","New official release must open Setup with a clear update action");
         Check(File.ReadAllText(Path.Combine(Package,"Navigation.txt"))=="Settings","Update attention must not overwrite the remembered page");
         foreach(bool light in new[]{false,true}) {
             SelectAppearance(light);RefreshState();
@@ -644,7 +644,7 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         }
         SelectPage("Settings",false);RefreshState();RefreshState();
         Check(currentPage=="Settings","Repeated polling must not steal navigation");
-        latestEngine=new UpstreamRelease.Choice { Id=44,Tag="v1.0.3",Sha256=new string('d',64),Addon=addon };
+        latestEngine=new UpstreamRelease.Choice { Id=44,Tag="v1.0.4",Sha256=new string('d',64),Addon=addon };
         busy=true;RefreshState();Check(currentPage=="Settings","Busy operation must defer update navigation");busy=false;
         using(var modal=new Form { StartPosition=FormStartPosition.Manual,Location=Location,ShowInTaskbar=false }) {
             bool deferred=false;
@@ -655,14 +655,14 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         Check(currentPage=="Settings","Open dropdown must defer update navigation");engineVersions.DroppedDown=false;
         RefreshState();Check(currentPage=="Setup","Deferred update must appear when interaction finishes");
         SelectPage("Settings",false);engineVersions.SelectedIndex=1;
-        latestEngine=new UpstreamRelease.Choice { Id=45,Tag="v1.0.4",Sha256=new string('e',64),Addon=addon };
+        latestEngine=new UpstreamRelease.Choice { Id=45,Tag="v1.0.5",Sha256=new string('e',64),Addon=addon };
         RefreshState();Check(currentPage=="Settings"&&engineVersions.SelectedIndex==1&&install.Text=="Install selected version","Explicit rollback choice must remain intact");
         latestEngine=currentRelease;engineVersions.SelectedIndex=0;RefreshState();
         Check(currentPage=="Settings"&&!install.Enabled,"Matching release must not prompt for an update");
         latestEngine=null;RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Offline discovery must not prompt");
         latestEngine=new UpstreamRelease.Choice { Id=46,Tag="v1.0.0",Sha256=new string('f',64),Addon=addon };
         RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Older latest release must not prompt a downgrade");
-        latestEngine=new UpstreamRelease.Choice { Id=47,Tag="v1.0.5",Sha256=new string('f',64),Addon=!addon };
+        latestEngine=new UpstreamRelease.Choice { Id=47,Tag="v1.0.6",Sha256=new string('f',64),Addon=!addon };
         RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Other mode's release must not prompt an update");
         latestEngine=currentRelease;
         try {

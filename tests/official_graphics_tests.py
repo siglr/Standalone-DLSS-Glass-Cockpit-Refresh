@@ -3,11 +3,12 @@ from pathlib import Path
 import hashlib,json,shutil,subprocess,sys
 
 ROOT=Path(__file__).resolve().parents[1]
+lock=json.loads((ROOT/'standalone/official-engine-lock.json').read_text())
 WORK=ROOT/'build/official-engine'
 fixture=WORK/'fixture'
 subprocess.run(['powershell.exe','-NoProfile','-File',str(ROOT/'tests/build_official_fixture.ps1'),'-Source',str(WORK/'upstream-source'),'-Output',str(fixture)],check=True)
 dll=WORK/'binary/dxgi.dll'
-assert hashlib.sha256(dll.read_bytes()).hexdigest()=='06f11b0abeb4d3a9b1a14b7ec22faf6de214c8f218353f1e062471015db2a685'
+assert hashlib.sha256(dll.read_bytes()).hexdigest()==lock['dllSha256']
 shutil.copy2(dll,fixture/'dxgi.dll')
 results=[]
 def check(name,args,cwd):

@@ -16,11 +16,13 @@ and use Setup. Settings are preserved; OFXR and Pimax settings are untouched.
 Keep all package files together, including the Source code and licenses folders.
 
 SETTINGS
+Bundled graphics: unmodified official v1.0.2, standalone and ReShade add-on.
+A newer verified release opens Setup and highlights Update once per session.
 Open Settings after installation. Advanced and Experimental are optional.
 For standalone mode, click the shortcut button to choose the key combination
 that opens IFreemz's in-game settings window. Green tint is available there.
-Use the shortcut while MSFS has focus. With official v1.0.1, use one settings
-editor at a time: saving in the in-game window can overwrite external edits.
+Use the shortcut while MSFS has focus. Official standalone v1.0.2 reloads
+the INI before saving, preserving settings changed by this app.
 For ReShade mode, edit settings here with MSFS closed; during a flight, use
 the fix's panel inside ReShade.
 
@@ -36,8 +38,8 @@ TROUBLESHOOTING
   If manual installation works, report it to installer support. If it also
   fails, report it to IFreemz with the fix version, reproduction steps and
   glass-cockpit-dlss-fix.log from the game folder.
-- Official v1.0.1: leave the optional Dark screen fix OFF (the default) if
-  newly recognized displays show brief glare errors.
+- Leave optional Dark screen fix OFF (the author default) if displays show
+  glare errors. Include the official graphics version when reporting issues.
 
 SUPPORT AND CREDITS
 Installer/settings app by siglr / WeSimGlide:

@@ -5,7 +5,7 @@ uploads, creates a signing key, or modifies another project's website files.
 """
 from pathlib import Path
 import argparse, hashlib, json, os, re, shutil, struct, subprocess, sys, zipfile
-from official_test_package import prepare as upstream, fetch, ROOT, WORK, PRODUCT, DLL_HASH, LOCK
+from official_test_package import prepare as upstream, fetch, ROOT, WORK, PRODUCT, DLL_HASH, LOCK, ADDON_SOURCE_NAME
 from release_signing import prepare as signing, sign
 
 EXE=PRODUCT+'.exe'
@@ -98,7 +98,7 @@ def main():
     items={EXE:control/EXE,'dxgi.dll':binary/'dxgi.dll','glass-cockpit-dlss-fix.ini':ROOT/'standalone/glass-cockpit-dlss-fix.ini',
         'glass-cockpit-dlss-fix.addon64':binary/'glass-cockpit-dlss-fix.addon64',
         'Source code/'+engine_source.name:engine_source,
-        'Source code/IFreemz-addon-v1.0.1-source.zip':WORK/'IFreemz-addon-v1.0.1-source.zip',
+        'Source code/'+ADDON_SOURCE_NAME:WORK/ADDON_SOURCE_NAME,
         'Source code/README.txt':ROOT/'standalone/SOURCE-CODE-README.txt',
         'official-engine-lock.json':ROOT/'standalone/official-engine-lock.json',
         'official-release.json':WORK/'official-release.json',
@@ -112,7 +112,7 @@ def main():
     for name,expected in compatibility['files'].items():
         assert Path(name).name==name and name.startswith(PRODUCT+'-'),name
         target=compat/name
-        fetch('https://github.com/'+compatibility['repository']+'/releases/download/'+compatibility['release']+'/'+name,target)
+        fetch('https://github.com/'+compatibility['repository']+'/releases/download/'+compatibility['release']+'/'+name,target,expected_hash=expected)
         assert sha(target)==expected,'Published compatibility asset changed: '+name
     update_verifier=PREP/'verify-update.exe'
     compile_cs(update_verifier,ROOT/'tests/app_update_runner.cs',ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',ROOT/'standalone/ReleasePublicKey.cs',vs)
@@ -130,7 +130,7 @@ def main():
     source=OUT/(PRODUCT+'-source.zip')
     sources_archive(source,version,{**{n:ROOT/n for n in files if n and (ROOT/n).is_file()},
         'official-engine-source/'+engine_source.name:engine_source,
-        'official-engine-source/IFreemz-addon-v1.0.1-source.zip':WORK/'IFreemz-addon-v1.0.1-source.zip'})
+        'official-engine-source/'+ADDON_SOURCE_NAME:WORK/ADDON_SOURCE_NAME})
     feed(archive,version,OUT/(PRODUCT+'.version.json'),source)
     details={'version':version,'verification':'SHA-256 identifies files; matching hashes and scan results do not certify safety. Release signatures are not Windows Authenticode.',
         'files':{archive.name:sha(archive),EXE:sha(control/EXE),'dxgi.dll':DLL_HASH,'glass-cockpit-dlss-fix.addon64':LOCK['addon']['sha256']},'antivirusStatus':'No vendor clearance or new scan claimed.'}
@@ -156,8 +156,7 @@ def main():
     width,height=sizes['glass-cockpit-refresh.png']
     card=re.sub(r'assets/glass-cockpit-refresh\.png\?v=[^"\s]+','assets/glass-cockpit-refresh.png?v='+hashes['glass-cockpit-refresh.png'],card)
     card=re.sub(r'alt="[^"]*" width="\d+" height="\d+"',f'alt="Glass Cockpit Refresh Setup page with official installation mode and version selection" width="{width}" height="{height}"',card,count=1)
-    card=re.sub(r'(<h2>Glass Cockpit Refresh</h2>)<p>.*?</p>',lambda m:m[1]+'<p>Install IFreemz’s official standalone DLL or ReShade add-on. Clear Setup and Settings pages, verified downloads and rollback choices for MSFS 2024.</p>',card,count=1)
-    assert card!=old_card
+    card=re.sub(r'(<h2>Glass Cockpit Refresh</h2>)<p>.*?</p>',lambda m:m[1]+'<p>Install IFreemz’s official '+LOCK['release']+' standalone DLL or ReShade add-on. Clear update prompts, verified downloads, shortcut recording and rollback choices for MSFS 2024.</p>',card,count=1)
     (OUT/'index.html').write_text(index.replace(old_card,card),encoding='utf-8')
     ht=(args.shared_site/'.htaccess').read_text(encoding='utf-8')
     block=(ROOT/'standalone/site/legacy-updates.conf').read_text(encoding='utf-8')

@@ -159,7 +159,7 @@ try:
     assert all(sha((OUT/'compatibility'/n).read_bytes())==h for n,h in compatibility['files'].items())
     with zipfile.ZipFile(OUT/(PRODUCT+'.zip')) as z:
         assert {n for n in z.namelist() if n.endswith('.md')}=={'LICENSE.md','licenses/IFreemz/NOTICE.md'}
-        assert 'README.txt' in z.namelist() and 'Source code/IFreemz-addon-v1.0.1-source.zip' in z.namelist()
+        assert 'README.txt' in z.namelist() and 'Source code/IFreemz-addon-v1.0.2-source.zip' in z.namelist()
         assert b'local test build' not in z.read('README.txt')
     print('PASS immutable compatibility assets, fixed filenames, routing expressions and preserved other-tool index cards; live Apache checks remain for publication',flush=True)
 finally:cleanup_fixture(work)

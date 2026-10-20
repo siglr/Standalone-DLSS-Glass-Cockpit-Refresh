@@ -65,7 +65,7 @@
       </div>
     </section>
     <div class="highlights">
-      <div><strong>Two official installation modes</strong><p>Standalone DLL or ReShade add-on. Unchanged files, verified checksums.</p></div>
+      <div><strong>Two official installation modes</strong><p>Official v1.0.2 standalone DLL or ReShade add-on. Unchanged files, verified checksums.</p></div>
       <div><strong>Your normal MSFS launch</strong><p>Install once. Keep using your usual simulator shortcut.</p></div>
       <div><strong>Works alongside official OFXR</strong><p>Frame generation stays separate, with your own OFXR settings.</p></div>
     </div>
@@ -88,13 +88,13 @@
       <div class="operation-intro">
         <p class="eyebrow">Simple controls, even in VR</p>
         <h2 id="operate-title">Set it up.<br>Keep flying.</h2>
-        <p>Use <strong>Setup</strong> to install, update or switch modes, and <strong>Settings</strong> to adjust the fix. The fixed window remembers its position, Dark/Light appearance and last-used page; smaller screens can scroll.</p>
+        <p>Use <strong>Setup</strong> to install, update or switch modes, and <strong>Settings</strong> to adjust the fix. A newer verified official release opens Setup once per session with a prominent Update button. The fixed window remembers its position, Dark/Light appearance and last-used page; smaller screens can scroll.</p>
         <p>In standalone mode, settings can apply without leaving VR. In ReShade mode, edit here with MSFS closed; during a flight, use the fix’s ReShade panel. You can close this app afterward. Green tint and diagnostics stay in the original in-game interface.</p>
         <div class="defaults" aria-label="Author defaults"><span>Smoothing 35</span><span>Extra OFF</span><span>UV seam fix ON</span><span>Dark screen fix OFF</span></div>
       </div>
       <dl class="controls">
         <div class="control"><dt>Enable / disable</dt><dd>Toggle <strong>Enable glass-cockpit refresh fix</strong>. In standalone mode the change applies while the simulator renders; it does not unload the mod. ReShade settings are read-only here while MSFS runs.</dd></div>
-        <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing. In standalone mode, click the settings-window shortcut to record a new binding; it stays unchanged unless you save. Use it with MSFS focused to open the official settings window and its green-tint button. Default: Ctrl+Shift+F6.</dd></div>
+        <div class="control"><dt>Glass settings</dt><dd>Adjust line smoothing. In standalone mode, click the settings-window shortcut to record a new binding; it stays unchanged unless you save. Official v1.0.2 adds modified arrows, Tab, Enter, Backspace, numpad operators and punctuation; reserved Windows combinations are rejected. Use it with MSFS focused to open the official settings window and its green-tint button. Default: Ctrl+Shift+F6.</dd></div>
         <div class="control"><dt>Advanced &amp;<br>Experimental</dt><dd>Expand these sections only when needed for a particular aircraft. Scroll for additional options. Stable edges, full-size sampling and occlusion checking default to ON; temporal anti-aliasing, soft smoothing and calm glass default to OFF. Temporal anti-aliasing uses extra VRAM. Each section has its own reset for the author’s defaults.</dd></div>
         <div class="control"><dt>Update</dt><dd>The app checks for new releases at launch and reopens after updating itself. If the files installed in MSFS also need updating, close MSFS and click <strong>Update</strong>. The button is greyed out when those DLLs already match. Your settings are kept.</dd></div>
         <div class="control"><dt>Uninstall</dt><dd>Close MSFS, reopen the app and click <strong>Uninstall</strong>. It removes the mod’s installed files and restores originals that it backed up. No manual DLL copying is needed.</dd></div>
@@ -103,12 +103,12 @@
     </section>
       <figure class="app-preview settings-preview">
         <a href="assets/glass-cockpit-refresh.png?v=APP_SCREENSHOT_HASH"><img src="assets/glass-cockpit-refresh.png?v=APP_SCREENSHOT_HASH" alt="Glass Cockpit Refresh Setup page in dark theme with installation mode, installed version and compatibility information" width="743" height="688"></a>
-        <figcaption>Setup in the test build. Official release downloads have automatic app updates enabled. Click to enlarge.</figcaption>
+        <figcaption>Setup shown in the earlier v1.0.2.14 test build. Current downloads bundle official graphics v1.0.2 and enable automatic app updates. Click to enlarge.</figcaption>
         <details class="theme-preview"><summary>View Setup in light theme</summary><a href="assets/glass-cockpit-refresh-light.png?v=APP_LIGHT_SCREENSHOT_HASH"><img src="assets/glass-cockpit-refresh-light.png?v=APP_LIGHT_SCREENSHOT_HASH" alt="Glass Cockpit Refresh Setup page in light theme" width="736" height="685" loading="lazy"></a></details>
       </figure>
     <figure class="app-preview settings-preview">
       <a href="assets/glass-cockpit-refresh-settings.png?v=SETTINGS_SCREENSHOT_HASH"><img src="assets/glass-cockpit-refresh-settings.png?v=SETTINGS_SCREENSHOT_HASH" alt="Settings page in dark theme with enable control, shortcut recorder, line smoothing and expandable Advanced and Experimental sections" width="744" height="687" loading="lazy"></a>
-      <figcaption>Settings in the test build. Advanced and Experimental stay collapsed until needed; official release downloads have automatic app updates enabled.</figcaption>
+      <figcaption>Settings shown in the earlier v1.0.2.14 test build. Advanced and Experimental stay collapsed until needed; official release downloads enable automatic app updates.</figcaption>
       <details class="theme-preview"><summary>View Settings in light theme</summary><a href="assets/glass-cockpit-refresh-settings-light.png?v=SETTINGS_LIGHT_SCREENSHOT_HASH"><img src="assets/glass-cockpit-refresh-settings-light.png?v=SETTINGS_LIGHT_SCREENSHOT_HASH" alt="Glass Cockpit Refresh Settings page in light theme" width="738" height="687" loading="lazy"></a></details>
     </figure>
     <section id="verify" class="section" aria-labelledby="verify-title">
@@ -159,7 +159,7 @@
       <div class="accordion">
         <details>
           <summary>Is there a known limitation with Dark screen fix?</summary>
-          <div class="answer"><p>With the bundled official v1.0.1 DLL, optional <strong>Dark screen fix ON</strong> reproduced incorrect glare on a newly recognized dark screen in an offline test. The author’s default remains <strong>OFF</strong>. If affected, turn that option off. This package preserves the official DLL unchanged; real aircraft and headset testing is still necessary.</p></div>
+          <div class="answer"><p>The bundled official v1.0.2 DLL still reproduces incorrect glare with optional <strong>Dark screen fix ON</strong> in a targeted offline test. The author’s default remains <strong>OFF</strong>. If affected, turn that option off. This package preserves the official DLL unchanged; real aircraft and headset testing is still necessary.</p></div>
         </details>
         <details>
           <summary>Something is wrong or MSFS crashes. How do I get support?</summary>
@@ -176,7 +176,7 @@
         </details>
         <details>
           <summary>Can I change settings in both windows?</summary>
-          <div class="answer"><p>With official v1.0.1, use one editor at a time: saving from the original standalone settings window can overwrite changes made here. In ReShade mode, this app allows editing only while MSFS is closed; during a flight use the fix’s ReShade panel. Unknown future settings formats disable local controls so that you can use that release’s own interface instead.</p></div>
+          <div class="answer"><p>Bundled official standalone v1.0.2 reloads the INI before saving, preserving settings changed by this app. In ReShade mode, this app allows editing only while MSFS is closed; during a flight use the fix’s ReShade panel. Unknown future settings formats disable local controls so that you can use that release’s own interface instead.</p></div>
         </details>
         <details>
           <summary>Do I need a particular DLSS preset or quality mode?</summary>

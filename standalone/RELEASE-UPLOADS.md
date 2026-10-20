@@ -1,11 +1,11 @@
-# Publish v1.0.2.14
+# Publish v1.0.2.15
 
 Staging folder: `C:\Standalone-DLSS-Glass-Cockpit-Refresh\build\standalone\server-upload`.
 Maintainer notes and listing material: `build/release-preparation` (do not upload that whole folder).
 
 ## GitHub
 
-Repository: siglr/Standalone-DLSS-Glass-Cockpit-Refresh. Release/tag: `v1.0.2.14`. Commit/push the corresponding source before creating the tag. Use RELEASE-NOTES.md as the changelog and RELEASE-DESCRIPTION.md for the full product description. Attach the final ZIP, SHA-256, hashes JSON, signed version JSON and source ZIP/checksum. Published legacy/bridge assets remain immutable in release v1.0.2.10; this release reuses them rather than creating replacements.
+Repository: siglr/Standalone-DLSS-Glass-Cockpit-Refresh. Release/tag: `v1.0.2.15`. Commit/push the corresponding source before creating the tag. Use RELEASE-NOTES.md as the changelog and RELEASE-DESCRIPTION.md for the full product description. Attach the final ZIP, SHA-256, hashes JSON, signed version JSON and source ZIP/checksum. Published legacy/bridge assets remain immutable in release v1.0.2.10; this release reuses them rather than creating replacements.
 
 ## WSG / cPanel
 
@@ -17,7 +17,7 @@ Verify the normal browser download and the legacy User-Agent routes after deploy
 
 ## Flightsim.to and HangarAddons
 
-Update the existing entries to version `1.0.2.14`. Upload only `Standalone-DLSS-Glass-Cockpit-Refresh.zip` as the normal download. Replace the current product description with RELEASE-DESCRIPTION.md and add RELEASE-NOTES.md as the version changelog. Replace the one outdated screenshot with all four user-supplied PNGs in assets: glass-cockpit-refresh.png, glass-cockpit-refresh-settings.png, glass-cockpit-refresh-light.png and glass-cockpit-refresh-settings-light.png. Preserve every existing video. Keep the description’s note that they show a test build; official downloads enable automatic app updates.
+Update the existing entries to version `1.0.2.15`. Upload only `Standalone-DLSS-Glass-Cockpit-Refresh.zip` as the normal download. Replace the current product description with RELEASE-DESCRIPTION.md. Use RELEASE-NOTES.md as the version changelog; it is kept under HangarAddons’ 2,000-character limit. Keep the existing four user-supplied screenshots and videos. The same gallery files are staged in assets: glass-cockpit-refresh.png, glass-cockpit-refresh-settings.png, glass-cockpit-refresh-light.png and glass-cockpit-refresh-settings-light.png. Preserve every existing video. Keep the description’s note that they show a test build; official downloads enable automatic app updates.
 
 Keep corresponding source linked through GitHub and the WSG download page. The user ZIP also contains both official graphics source archives under Source code. ReShade itself is not included.
 

@@ -1,6 +1,6 @@
 # Setup / Settings test package — app 1.0.2.14
 
-Independent installer/settings app by siglr / WeSimGlide. Both graphics files are unchanged official releases of **Glass Cockpit DLSS Fix by IFreemz v1.0.1**:
+Independent installer/settings app by siglr / WeSimGlide. Both graphics files are unchanged official releases of **Glass Cockpit DLSS Fix by IFreemz v1.0.2**:
 https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix
 
 This is a local test build. Automatic app updates are disabled; official fix downloads and version selection are available. Do not upload this ZIP to the production update feed.
@@ -16,7 +16,7 @@ On **Setup**, confirm the game folder. In **Install as**, choose:
 
 An existing installation managed by this app selects its current mode. An existing add-on beside the game executable preselects add-on mode; that file alone does not prove ReShade is installed correctly.
 
-**Latest official release** is selected by default. The primary action changes to **Install**, **Update**, **Switch mode** or **Install selected version** for your selection. Installed mode/version are shown separately from your selection. Click the primary action to install the latest verified official release in that mode. For rollback, choose a version and click **Install selected version**. Each mode has its own list of up to ten verifiable releases and a bundled v1.0.1 option usable offline. Older releases may have known bugs: v1.0.0 can crash with FSLabs aircraft.
+**Latest official release** is selected by default. The primary action changes to **Install**, **Update**, **Switch mode** or **Install selected version** for your selection. Installed mode/version are shown separately from your selection. Click the primary action to install the latest verified official release in that mode. For rollback, choose a version and click **Install selected version**. Each mode has its own list of up to ten verifiable releases and a bundled v1.0.2 option usable offline. Older releases may have known bugs: v1.0.0 can crash with FSLabs aircraft.
 
 The test app manages add-ons beside the game executable. If ReShade uses a custom add-on folder, installation stops and identifies that folder. Update that installation manually rather than placing a second copy in the game folder.
 
@@ -34,8 +34,8 @@ Open **Settings** after installation. The enable checkbox is followed by the sho
 
 Both official versions use `glass-cockpit-dlss-fix.ini` beside the installed file. Author defaults are retained; existing settings are preserved byte for byte during installation and switching.
 
-- **Standalone:** settings changes here apply during upscaling without leaving VR. The shortcut recorder opens the official standalone settings window; green tint and diagnostics stay in that window. Use one settings editor at a time: v1.0.1 can overwrite external edits when its own window saves.
-- **ReShade add-on v1.0.1:** edit settings here **with MSFS closed**. During a flight, use the Glass Cockpit DLSS Fix panel in ReShade. The add-on reads its INI at startup; it does not reload external edits. The standalone settings-window shortcut is not offered for this mode.
+- **Standalone:** settings changes here apply during upscaling without leaving VR. The shortcut recorder opens the official standalone settings window; green tint and diagnostics stay in that window. The v1.0.2 standalone window reloads the INI before saving, preserving external edits.
+- **ReShade add-on v1.0.2:** edit settings here **with MSFS closed**. During a flight, use the Glass Cockpit DLSS Fix panel in ReShade. The add-on reads its INI at startup; it does not reload external edits. The standalone settings-window shortcut is not offered for this mode.
 
 Unknown future settings formats disable the local controls; use that release's own settings interface. Reset buttons leave shortcuts alone.
 
@@ -60,6 +60,6 @@ Installer, update, mode selection and app-window issues: https://github.com/sigl
 
 For an MSFS problem, uninstall this package and test the same official version and mode installed manually. If manual installation works, contact Installer support. If it also fails, contact IFreemz at https://github.com/IFreemz/msfs2024-glass-cockpit-dlss-fix/issues with the fix version, aircraft, steps and `glass-cockpit-dlss-fix.log`. Follow his instructions for an optional diagnostic capture.
 
-The official standalone v1.0.1 has a known offline failure with optional **Dark screen fix ON** (brief glare errors on a newly recognized display). The author default remains OFF. This app does not modify or patch either graphics binary. Offline results do not replace a real MSFS/ReShade/VR flight test.
+Official v1.0.2 still fails the targeted offline glare test with optional **Dark screen fix ON** in desktop and stereo. Default-OFF and external-settings tests pass; see RELEASE-VALIDATION.md. The author default remains OFF. This app does not modify or patch either graphics binary. Offline results do not replace a real MSFS/ReShade/VR flight test.
 
 The separate app remains PolyForm Noncommercial. IFreemz's binaries and corresponding source retain GPL-3.0-only and original NOTICE terms. Both pinned source archives, including build scripts and submodules, are in `Source code/`. They are for developers; do not extract them to install the app. License/notice files are under `licenses/IFreemz`. Full ReShade is not distributed in this package.

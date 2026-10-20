@@ -1,6 +1,6 @@
 # Packaging and signing
 
-## Current official-DLL release: 1.0.2.14
+## Current official-DLL release: 1.0.2.15
 
 Build from this checkout using `python -B scripts/official_release_package.py --enable-official-updates --shared-site "C:\WSG MSFS 2024 FG Switcher\dist\website"`, with `GLASS_SIGNING_KEY` explicitly set to the existing protected production key. Never generate a replacement key. The app is compiled with the pinned production public key and official updates enabled. Both IFreemz graphics files remain byte-unchanged and must match the release-note checksums. Development builds use their separate key and disable official app updates.
 
@@ -26,16 +26,18 @@ Merge `standalone/site/legacy-updates.conf` into the shared .htaccess while pres
 
 ### Required checks and publication
 
+Run `python -B scripts/prepare_release_uploads.py` after signing to stage the two WSG upload bundles and the short HangarAddons changelog.
+
 Run standalone discovery/installer, updater, official-engine, installation-mode, compatibility, dirty-buffer paint and development-package checks. Run `tests/release_migration_tests.py` against the production signed ZIP: real historical update chains, direct v1.0.2.10 upgrade, retained personal files/OFXR, exact production UI in both modes, immutable bridge checks, and staged route/filename checks. Run graphics fixtures sequentially only with the real simulator closed. The optional Dark screen fix ON glare failure is a disclosed upstream limitation; default-OFF, external-settings, startup and core checks must pass.
 
-Prepare RELEASE-DESCRIPTION.md, RELEASE-NOTES.md and the actual production screenshots for GitHub, WSG, Flightsim.to and HangarAddons. Preparation alone does not publish anything. Commit/push the exact source before creating release tag v1.0.2.14.
+Prepare RELEASE-DESCRIPTION.md, RELEASE-NOTES.md and the user-approved screenshots with an accurate version caption for GitHub, WSG, Flightsim.to and HangarAddons. Preparation alone does not publish anything. Commit/push the exact source before creating release tag v1.0.2.15.
 
 1. Publish current corresponding source and checksum on GitHub/WSG.
 2. Retain or restore the exact pinned compatibility files and merge routing without dropping newer live rules.
 3. Upload current ZIP, hashes, tool page, screenshots and the narrowly updated shared index.
 4. Upload the signed main version JSON last.
 5. Verify HTTP 200 without redirects for browser and User-Agents /0.1.9, /1.0.1, /1.0.2, /1.0.2.1, /1.0.2.10 and /1.0.2.14; compare signed hashes and no-store/Vary headers. These checks require deployment.
-6. Publish the GitHub release and update the existing Flightsim.to/HangarAddons entries with the normal ZIP, full description, changelog and new screenshots.
+6. Publish the GitHub release and update the existing Flightsim.to/HangarAddons entries with the normal ZIP, full description, changelog. Preserve the four approved screenshots and all videos.
 
 ## Historical custom-engine packaging
 

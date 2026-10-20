@@ -1,10 +1,12 @@
-RELEASE v1.0.2.14 — PREPARED, NOT PUBLISHED
+RELEASE v1.0.2.15 — PREPARED, NOT PUBLISHED
 
 NORMAL DOWNLOAD (all sites)
   server-upload/Standalone-DLSS-Glass-Cockpit-Refresh.zip
   The filename stays the same; the version is inside the signed metadata.
 
 WSG: /otherdata/tools/
+  deployment/standalone-publish-current.zip: upload and extract first.
+  deployment/standalone-publish-update-feed.zip: upload and extract LAST.
   Upload the source ZIP/checksum first.
   Keep compatibility/ and its existing routing: they serve older apps.
   Upload the app ZIP, hashes/checksum, tool HTML and screenshot assets.
@@ -13,13 +15,15 @@ WSG: /otherdata/tools/
   Verify live browser and older-app download routes afterward.
 
 GITHUB / FLIGHTSIM.TO / HANGARADDONS
-  Version/tag: 1.0.2.14 / v1.0.2.14.
+  Version/tag: 1.0.2.15 / v1.0.2.15.
   RELEASE-DESCRIPTION.md: full product listing text.
-  RELEASE-NOTES.md: changelog.
-  assets/glass-cockpit-refresh.png: new Setup screenshot.
-  assets/glass-cockpit-refresh-settings.png: additional Settings screenshot.
+  RELEASE-NOTES.md: changelog (under 2,000 characters).
+  HANGAR-CHANGELOG.txt: identical short copy for HangarAddons.
+  assets/glass-cockpit-refresh.png: approved Setup screenshot.
+  assets/glass-cockpit-refresh-settings.png: approved Settings screenshot.
   Corresponding -light.png files: light-theme alternatives.
-  Screenshots show a test build; keep the release-update clarification in the copy.
+  Keep the existing four screenshots and both sites’ videos.
+  Screenshots show the earlier test build; the copy explains this.
   RELEASE-UPLOADS.md: site-specific steps.
 
 This folder holds maintainer instructions; do not upload it wholesale.

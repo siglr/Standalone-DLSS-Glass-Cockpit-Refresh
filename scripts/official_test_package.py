@@ -18,26 +18,33 @@ WORK = ROOT / 'build/official-engine'
 VERSION = (ROOT / 'standalone/VERSION').read_text().strip()
 LOCK = json.loads((ROOT/'standalone/official-engine-lock.json').read_text(encoding='utf-8'))
 COMMIT, REPOSITORY = LOCK['commit'], LOCK['repository']
+RELEASE = LOCK['release']
+ADDON_SOURCE_NAME = f'IFreemz-addon-{RELEASE}-source.zip'
 ZIP_HASH, DLL_HASH = LOCK['zipSha256'], LOCK['dllSha256']
 PRODUCT = 'Standalone-DLSS-Glass-Cockpit-Refresh'
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
-def fetch(url, path, limit=64*1024*1024, refresh=False):
-    if path.exists() and not refresh:
+def fetch(url, path, limit=64*1024*1024, refresh=False, expected_hash=None):
+    origin = path.with_name(path.name+'.url')
+    if path.exists() and not refresh and (
+        digest(path)==expected_hash if expected_hash else origin.exists() and origin.read_text()==url):
         return
     with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': PRODUCT}), timeout=30) as response:
         data = response.read(limit+1)
     if len(data)>limit:
         raise RuntimeError('Download exceeded size limit')
+    if expected_hash and hashlib.sha256(data).hexdigest()!=expected_hash:
+        raise RuntimeError('Downloaded file does not match the pinned official checksum')
     path.write_bytes(data)
+    if expected_hash is None:origin.write_text(url)
 
 def prepare():
     WORK.mkdir(parents=True, exist_ok=True)
     app=(ROOT/'standalone/UpstreamRelease.cs').read_text(encoding='utf-8')
     assert ZIP_HASH in app and DLL_HASH in app and ('Version="'+LOCK['release'][1:]+'"') in app, 'App and engine lock disagree'
-    fetch(f'https://github.com/{REPOSITORY}/releases/download/v1.0.1/glass-cockpit-dlss-fix-standalone.zip', WORK/'official.zip')
+    fetch(f'https://github.com/{REPOSITORY}/releases/download/{RELEASE}/{LOCK["asset"]}', WORK/'official.zip',expected_hash=ZIP_HASH)
     assert digest(WORK/'official.zip')==ZIP_HASH, 'Official archive checksum differs; do not use it'
     binary=WORK/'binary';binary.mkdir(exist_ok=True)
     with zipfile.ZipFile(WORK/'official.zip') as archive:
@@ -45,7 +52,7 @@ def prepare():
             (binary/name).write_bytes(archive.read(name))
     assert digest(binary/'dxgi.dll')==DLL_HASH
     addon=binary/'glass-cockpit-dlss-fix.addon64'
-    fetch(f'https://github.com/{REPOSITORY}/releases/download/v1.0.1/{addon.name}',addon)
+    fetch(f'https://github.com/{REPOSITORY}/releases/download/{RELEASE}/{addon.name}',addon,expected_hash=LOCK['addon']['sha256'])
     assert digest(addon)==LOCK['addon']['sha256'] and LOCK['addon']['sha256'] in app
     # The add-on is built from the release tag, not the standalone's main commit.
     fetch(f"https://api.github.com/repos/{REPOSITORY}/zipball/{LOCK['addon']['tagObject']}",WORK/'addon-source.zip')
@@ -53,13 +60,12 @@ def prepare():
     fetch(f'https://api.github.com/repos/{REPOSITORY}/zipball/{COMMIT}',WORK/'source.zip')
     source=WORK/'upstream-source';source.mkdir(exist_ok=True)
     dependencies=[('',WORK/'source.zip')]
-    for name, repo, commit in (
-        ('minhook','TsudaKageyu/minhook','8af6b4acae5a9388fd742b56fa79ece89d96f823'),
-        ('reshade','crosire/reshade','6a7eaf8dbf5ed7050de1afd381ff058dfb51935e')):
+    for name, repo in (('minhook','TsudaKageyu/minhook'),('reshade','crosire/reshade')):
+        commit=LOCK['sourceSubmodules']['third_party/'+name]
         path=WORK/(name+'-source.zip')
         fetch(f'https://api.github.com/repos/{repo}/zipball/{commit}',path)
         dependencies.append(('third_party/'+name+'/',path))
-    source_zip=WORK/'IFreemz-standalone-v1.0.1-source.zip'
+    source_zip=WORK/f'IFreemz-standalone-{RELEASE}-source.zip'
     with zipfile.ZipFile(source_zip,'w',zipfile.ZIP_DEFLATED) as out:
         seen=set()
         for prefix,path in dependencies:
@@ -72,8 +78,8 @@ def prepare():
                     seen.add(name);data=archive.read(item)
                     dest=source/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
                     out.writestr(name,data)
-        out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'commit':COMMIT,'release':'v1.0.1','dllSha256':DLL_HASH},indent=2))
-    with zipfile.ZipFile(WORK/'IFreemz-addon-v1.0.1-source.zip','w',zipfile.ZIP_DEFLATED) as out:
+        out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'commit':COMMIT,'release':RELEASE,'dllSha256':DLL_HASH,'sourceSubmodules':LOCK['sourceSubmodules']},indent=2))
+    with zipfile.ZipFile(WORK/ADDON_SOURCE_NAME,'w',zipfile.ZIP_DEFLATED) as out:
         for prefix,path in [('',WORK/'addon-source.zip'),*dependencies[1:]]:
             with zipfile.ZipFile(path) as archive:
                 for item in archive.infolist():
@@ -81,7 +87,7 @@ def prepare():
                     name=prefix+item.filename.split('/',1)[1]
                     if '..' in Path(name).parts or Path(name).is_absolute():raise RuntimeError('Unsafe add-on source name')
                     out.writestr(name,archive.read(item))
-        out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'tagObject':LOCK['addon']['tagObject'],'commit':LOCK['addon']['commit'],'release':'v1.0.1','addonSha256':digest(addon),'sourceSubmodules':LOCK['sourceSubmodules']},indent=2))
+        out.writestr('BUNDLED-SOURCE.json',json.dumps({'repository':REPOSITORY,'tagObject':LOCK['addon']['tagObject'],'commit':LOCK['addon']['commit'],'release':RELEASE,'addonSha256':digest(addon),'sourceSubmodules':LOCK['sourceSubmodules']},indent=2))
     return binary,source_zip
 
 def main():
@@ -105,7 +111,7 @@ def main():
     items={
         'dxgi.dll':binary/'dxgi.dll',
         'glass-cockpit-dlss-fix.addon64':binary/'glass-cockpit-dlss-fix.addon64',
-        'Source code/IFreemz-addon-v1.0.1-source.zip':WORK/'IFreemz-addon-v1.0.1-source.zip',
+        'Source code/'+ADDON_SOURCE_NAME:WORK/ADDON_SOURCE_NAME,
         'glass-cockpit-dlss-fix.ini':ROOT/'standalone/glass-cockpit-dlss-fix.ini',
         'licenses/IFreemz/LICENSE':binary/'LICENSE',
         'licenses/IFreemz/NOTICE.md':binary/'NOTICE.md',
@@ -120,10 +126,11 @@ def main():
     }
     # Remove only unchanged generated files retired from the previous package layout.
     old_inventory=json.loads((out/'app-files.json').read_text()) if (out/'app-files.json').exists() else {}
-    for name in ('IFreemz-addon-v1.0.1-source.zip',source_zip.name,'README.md','COMPARISON.md','IFREEMZ-ENHANCEMENTS.md'):
+    for name,old_hash in old_inventory.get('files',{}).items():
+        if name in items or name in (PRODUCT+'.exe','VERSION','payload.json'):continue
         obsolete=out/name
-        if obsolete.exists() and digest(obsolete)==old_inventory.get('files',{}).get(name):
-            assert obsolete.resolve().parent==out.resolve() and not obsolete.is_symlink()
+        assert obsolete.resolve().is_relative_to(out.resolve()) and not obsolete.is_symlink()
+        if obsolete.is_file() and digest(obsolete)==old_hash:
             obsolete.unlink()
     for name,path in items.items():
         dest=out/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,dest)

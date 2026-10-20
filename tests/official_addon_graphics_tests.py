@@ -7,11 +7,12 @@ from pathlib import Path
 import hashlib,json,shutil,subprocess,sys
 
 ROOT=Path(__file__).resolve().parents[1]
+lock=json.loads((ROOT/'standalone/official-engine-lock.json').read_text())
 base=ROOT/'build/official-engine'
 source=base/'fixture';target=base/'addon-fixture';target.mkdir(exist_ok=True)
 addon=base/'binary/glass-cockpit-dlss-fix.addon64'
 reshade=base/'test-dependencies/ReShade64.asi'
-assert hashlib.sha256(addon.read_bytes()).hexdigest()=='a637456d2a93780ccfea73043f428e4f2a0f5f009423a3ca22b694b198565517'
+assert hashlib.sha256(addon.read_bytes()).hexdigest()==lock['addon']['sha256']
 assert hashlib.sha256(reshade.read_bytes()).hexdigest()=='0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7'
 assert not (target/'dxgi.dll').exists(),'Do not load both fixes'
 for path in source.iterdir():

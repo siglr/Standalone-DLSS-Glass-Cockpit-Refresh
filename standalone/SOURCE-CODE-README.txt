@@ -3,10 +3,10 @@ CORRESPONDING GRAPHICS SOURCE — FOR DEVELOPERS
 These archives are not app updates or alternative installers.
 You do not need to open or extract them to use this app.
 
-IFreemz-standalone-v1.0.1-source.zip matches the official standalone dxgi.dll.
-IFreemz-addon-v1.0.1-source.zip matches the official ReShade add-on.
+IFreemz-standalone-v1.0.2-source.zip matches the official standalone dxgi.dll.
+IFreemz-addon-v1.0.2-source.zip matches the official ReShade add-on.
 
-Both modes use IFreemz graphics version 1.0.1; the installer has its own version.
+Both modes use IFreemz graphics version 1.0.2; the installer has its own version.
 The archives include the corresponding source, build scripts and dependencies.
 They accompany the official binaries under GPL-3.0-only and upstream NOTICE terms.
 See ../licenses/IFreemz for the original license and notices.

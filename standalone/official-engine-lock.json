@@ -1,11 +1,11 @@
 {
   "repository": "IFreemz/msfs2024-glass-cockpit-dlss-fix",
-  "release": "v1.0.1",
-  "releaseId": 416640528,
-  "commit": "e8a26fa9b99dba6b74213e999f871da933384da0",
+  "release": "v1.0.2",
+  "releaseId": 418162749,
+  "commit": "9dd06d34767441a42d5fb0795b370ef1940fdd4c",
   "asset": "glass-cockpit-dlss-fix-standalone.zip",
-  "zipSha256": "345dc3b760f2750346c986e87faa0900e9f17eeee85a3ceab95caf96aa954281",
-  "dllSha256": "06f11b0abeb4d3a9b1a14b7ec22faf6de214c8f218353f1e062471015db2a685",
+  "zipSha256": "010abd02f3b25f35fe06ff7376ce43920ef808fbf6afe5c0b100a20785d1eb94",
+  "dllSha256": "5b505a00e5a072f6c2a9b37a6f19800f248850ace6fc51dcb802c0043a560d03",
   "dllModified": false,
   "license": "GPL-3.0-only with upstream NOTICE.md section 7 terms",
   "sourceSubmodules": {
@@ -14,9 +14,9 @@
   },
   "addon": {
     "asset": "glass-cockpit-dlss-fix.addon64",
-    "sha256": "a637456d2a93780ccfea73043f428e4f2a0f5f009423a3ca22b694b198565517",
-    "tagObject": "910e13c837034c4837ea861a2655977a81ebb608",
-    "commit": "fabb8cef17595e8c521595023cfe85ecef33e8c0",
+    "sha256": "9474b66e2e22bc005233463574fc9ba9c107d4bfa8364e5c3478588f0e8f2036",
+    "tagObject": "3905f7b83bd45f58d14b3d01af3d34babdebdeaa",
+    "commit": "c4651ad67cbb38f523f1f82279bfa6c2732b2be9",
     "modified": false
   }
 }
