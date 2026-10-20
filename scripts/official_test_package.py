@@ -15,7 +15,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / 'build/official-engine'
-VERSION = '1.0.2.14'
+VERSION = (ROOT / 'standalone/VERSION').read_text().strip()
 LOCK = json.loads((ROOT/'standalone/official-engine-lock.json').read_text(encoding='utf-8'))
 COMMIT, REPOSITORY = LOCK['commit'], LOCK['repository']
 ZIP_HASH, DLL_HASH = LOCK['zipSha256'], LOCK['dllSha256']

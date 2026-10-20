@@ -9,6 +9,8 @@ using System.Windows.Forms;
 
 internal sealed class GlassWindow : Form
 {
+    [DllImport("user32.dll")]
+    static extern bool IsWindowEnabled(IntPtr window);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode)]
     static extern uint GetPrivateProfileInt(string section, string key, int fallback, string path);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode)]
@@ -34,6 +36,8 @@ internal sealed class GlassWindow : Form
     string BinaryName { get { return AddonMode?UpstreamRelease.AddonName:"dxgi.dll"; } }
     string BundledHash { get { return AddonMode?UpstreamRelease.AddonHash:UpstreamRelease.ZipHash; } }
     UpstreamRelease.Choice latestEngine;
+    readonly System.Collections.Generic.HashSet<string> announcedEngineUpdates =
+        new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
     UpstreamRelease.Choice[] pendingEngineChoices;
     string upstreamUrl=UpstreamRelease.Repository+"/releases/tag/v"+UpstreamRelease.Version;
     readonly Button install = new WsgButton { Text="Install", Tag="primary" };
@@ -369,6 +373,15 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         try { File.WriteAllText(Path.Combine(Package,"Appearance.txt"),light ? "light" : "dark"); }
         catch(Exception e) { ParentDialogPosition.Show(this,"The appearance changed, but could not be saved.\n\n"+e.Message,Text); }
     }
+    bool NewerOfficialRelease(NativeInstaller.Receipt installed) {
+        if(installed==null||latestEngine==null||latestEngine.Addon!=NativeInstaller.UsesAddon(installed)||
+            installed.engineZipHash==latestEngine.Sha256||String.IsNullOrEmpty(latestEngine.Tag)||
+            !latestEngine.Tag.StartsWith("v",StringComparison.Ordinal))return false;
+        try { return StandaloneAppUpdate.ParseVersion(latestEngine.Tag.Substring(1))>
+            StandaloneAppUpdate.ParseVersion(installed.engineVersion); }
+        catch(InvalidDataException) { return false; }
+        catch(ArgumentException) { return false; }
+    }
     void RefreshState()
     {
         bool found=Target.Length>0 && File.Exists(Path.Combine(Target,"FlightSimulator2024.exe"));
@@ -385,7 +398,8 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         bool knownSettings=false;
         if(complete)try {
             var receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
-            knownSettings=receipt.engineVersion=="1.0.0"||receipt.engineVersion=="1.0.1";
+            // 1.0.2 keeps the same keys/defaults; standalone reloads INI before saving.
+            knownSettings=receipt.engineVersion=="1.0.0"||receipt.engineVersion=="1.0.1"||receipt.engineVersion=="1.0.2";
         } catch { }
         bool addonRunning=installedAddon&&SimulatorRunning();
         note.Text=addonRunning?"MSFS is running — change add-on settings in ReShade.":complete&&!knownSettings ? "Settings format not verified — use the original in-sim window." : "";
@@ -396,18 +410,18 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         if(recovery) { needsUpdate=true; installedStatus="Update interrupted - close MSFS, then click Update to recover"; }
         else if(complete) needsUpdate=NeedsInstalledUpdate(out installedStatus);
         else if(legacy) { needsUpdate=true; installedStatus="Update available — migrate to the official DLL; keep settings"; }
-        if(complete&&!switching&&!needsUpdate&&latestEngine!=null&&(installedStatus.StartsWith("Installed -")||installedStatus.StartsWith("Installed official"))) {
-            try {
-                var receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
-                if(receipt.engineZipHash!=latestEngine.Sha256) { needsUpdate=true;installedStatus="Latest official DLL "+latestEngine.Tag+" available — click Update"; }
-            } catch { }
-        }
+        bool officialUpdate=complete&&!switching&&!recovery&&NewerOfficialRelease(installed)&&
+            (installedStatus.StartsWith("Installed -")||installedStatus.StartsWith("Installed official"));
+        if(officialUpdate) { needsUpdate=true;installedStatus="Official "+(installedAddon?"add-on ":"DLL ")+latestEngine.Tag+" available — update below"; }
         if(switching&&!installedStatus.Contains("changed")&&!installedStatus.StartsWith("Cannot")) { needsUpdate=true;installedStatus="Ready to switch mode — settings will be kept"; }
         bool verified=installedStatus.IndexOf("changed",StringComparison.OrdinalIgnoreCase)<0&&!installedStatus.StartsWith("Cannot")&&!installedStatus.StartsWith("Package");
         bool canInstall=!busy&&found&&!other&&(!present||recovery||legacy||complete&&verified);
         bool selectionNeeds=FollowLatest?latestEngine!=null&&(!present||needsUpdate||switching||recovery||legacy):SelectedEngineNeedsInstall()||recovery||legacy;
         install.Enabled=canInstall&&selectionNeeds;uninstall.Enabled=!busy&&(present||recovery);
-        install.Text=!present?"Install":switching?"Switch mode":FollowLatest?"Update":"Install selected version";
+        install.Text=!present?"Install":switching?"Switch mode":FollowLatest?
+            (officialUpdate?"Update to "+latestEngine.Tag:"Update"):"Install selected version";
+        install.AccessibleDescription=officialUpdate&&FollowLatest?
+            "A newer official release is available. Update preserves your settings.":"";
         installMode.Enabled=!busy;
         browse.Enabled=!busy; enabled.Enabled=!busy && complete && knownSettings&&!addonRunning;
         engineVersions.Enabled=!busy;
@@ -419,6 +433,13 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         if(!busy) status.Text=other ? "Remove the conflicting mod using its own installer first."
             : complete || recovery || legacy ? installedStatus : present ? "Installation incomplete - use Uninstall to recover"
             : found ? "Ready to install - close MSFS first" : "Choose the MSFS 2024 game folder with Browse.";
+        // Alert once per installation/release during this session. Never interrupt a
+        // modal dialog, an operation, or an explicit rollback/mode/dropdown choice.
+        if(officialUpdate&&FollowLatest&&canInstall&&Enabled&&(!IsHandleCreated||IsWindowEnabled(Handle))&&
+            !engineVersions.DroppedDown&&!installMode.DroppedDown) {
+            string notice=Path.GetFullPath(Target)+"|"+installedAddon+"|"+latestEngine.Tag;
+            if(announcedEngineUpdates.Add(notice))SelectPage("Setup",false);
+        }
     }
     string FileHash(string path)
     {
@@ -609,6 +630,46 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         Check(FollowLatest&&engineVersions.SelectedIndex==0,"Latest is the default selection");
         Check(glass.Enabled==!(addon&&SimulatorRunning()),"Running add-on editing guard");
         byte[] originalIni=File.ReadAllBytes(Ini),receipt=File.ReadAllBytes(Receipt);
+        // Discovery must draw attention once, without stealing navigation on each timer tick.
+        var currentRelease=latestEngine;
+        var updateRelease=new UpstreamRelease.Choice { Id=43,Tag="v1.0.2",Sha256=new string('c',64),Addon=addon };
+        latestEngine=updateRelease;SelectPage("Settings",true);RefreshState();
+        Check(currentPage=="Setup"&&install.Enabled&&install.Text=="Update to v1.0.2","New official release must open Setup with a clear update action");
+        Check(File.ReadAllText(Path.Combine(Package,"Navigation.txt"))=="Settings","Update attention must not overwrite the remembered page");
+        foreach(bool light in new[]{false,true}) {
+            SelectAppearance(light);RefreshState();
+            Check(install.BackColor==WsgTheme.Mint,"Available update must use the primary accent in both themes");
+            Preview(preview+"."+(light?"light":"dark")+"-update-available.png");
+        }
+        SelectPage("Settings",false);RefreshState();RefreshState();
+        Check(currentPage=="Settings","Repeated polling must not steal navigation");
+        latestEngine=new UpstreamRelease.Choice { Id=44,Tag="v1.0.3",Sha256=new string('d',64),Addon=addon };
+        busy=true;RefreshState();Check(currentPage=="Settings","Busy operation must defer update navigation");busy=false;
+        using(var modal=new Form { StartPosition=FormStartPosition.Manual,Location=Location,ShowInTaskbar=false }) {
+            bool deferred=false;
+            modal.Shown+=delegate { RefreshState();deferred=currentPage=="Settings";modal.Close(); };
+            modal.ShowDialog(this);Check(deferred,"Modal dialog must defer update navigation");
+        }
+        engineVersions.DroppedDown=true;RefreshState();
+        Check(currentPage=="Settings","Open dropdown must defer update navigation");engineVersions.DroppedDown=false;
+        RefreshState();Check(currentPage=="Setup","Deferred update must appear when interaction finishes");
+        SelectPage("Settings",false);engineVersions.SelectedIndex=1;
+        latestEngine=new UpstreamRelease.Choice { Id=45,Tag="v1.0.4",Sha256=new string('e',64),Addon=addon };
+        RefreshState();Check(currentPage=="Settings"&&engineVersions.SelectedIndex==1&&install.Text=="Install selected version","Explicit rollback choice must remain intact");
+        latestEngine=currentRelease;engineVersions.SelectedIndex=0;RefreshState();
+        Check(currentPage=="Settings"&&!install.Enabled,"Matching release must not prompt for an update");
+        latestEngine=null;RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Offline discovery must not prompt");
+        latestEngine=new UpstreamRelease.Choice { Id=46,Tag="v1.0.0",Sha256=new string('f',64),Addon=addon };
+        RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Older latest release must not prompt a downgrade");
+        latestEngine=new UpstreamRelease.Choice { Id=47,Tag="v1.0.5",Sha256=new string('f',64),Addon=!addon };
+        RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Other mode's release must not prompt an update");
+        latestEngine=currentRelease;
+        try {
+            var updated=CurrentReceipt();updated.engineVersion="1.0.2";
+            File.WriteAllText(Receipt,new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(updated));RefreshState();
+            Check(glass.Enabled==!(addon&&SimulatorRunning()),"Official 1.0.2 settings must remain editable");
+        } finally { File.WriteAllBytes(Receipt,receipt);RefreshState(); }
+        Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"Update discovery wrote simulator settings");
         // Invalid receipts and interrupted transactions must stay on Setup without a crash.
         try {
             File.WriteAllText(Receipt,"invalid receipt");RefreshState();RestorePage();
