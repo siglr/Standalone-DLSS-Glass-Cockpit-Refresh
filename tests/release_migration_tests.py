@@ -21,7 +21,7 @@ def unzip(path,dest):
     with zipfile.ZipFile(path) as z:z.extractall(dest)
 def source(tag):
     dest=work/tag;dest.mkdir()
-    name=PRODUCT+('-source.zip' if tag=='v1.0.2.10' else '-'+tag[1:]+'-source.zip')
+    name=PRODUCT+('-source.zip' if tag.count('.')==3 else '-'+tag[1:]+'-source.zip')
     with zipfile.ZipFile(PREP/tag/name) as z:
         for n in ('standalone/AppUpdate.cs','standalone/ReleaseTrust.cs'):(dest/Path(n).name).write_bytes(z.read(n))
     return dest
@@ -44,7 +44,8 @@ def step(exe,app,prefix,expected):
 try:
     for tag,names in [('v0.1.9',[PRODUCT+'.zip']),('v1.0.1',[PRODUCT+'.zip',PRODUCT+'-1.0.1-source.zip']),
         ('v1.0.2',[PRODUCT+'.zip',PRODUCT+'-1.0.2-source.zip']),
-        ('v1.0.2.10',[PRODUCT+'.zip',PRODUCT+'-source.zip'])]:
+        ('v1.0.2.10',[PRODUCT+'.zip',PRODUCT+'-source.zip']),
+        ('v1.0.2.14',[PRODUCT+'.zip',PRODUCT+'-source.zip'])]:
         for name in names:
             dest=PREP/tag/name
             if not dest.exists():
@@ -62,20 +63,23 @@ try:
     with zipfile.ZipFile(OUT/'compatibility'/(PRODUCT+'-bridge-source.zip')) as z:
         for name in ('AppUpdate.cs','ReleaseTrust.cs'):(bridge/name).write_bytes(z.read('standalone/'+name))
     bridge_runner=runner(bridge,bridge/'AppUpdate.cs',bridge/'ReleaseTrust.cs','1.0.2.1')
-    v10210=source('v1.0.2.10');old10210=runner(v10210,v10210/'AppUpdate.cs',v10210/'ReleaseTrust.cs','1.0.2.10')
+    direct={}
+    for version in ('1.0.2.10','1.0.2.14'):
+        previous=source('v'+version)
+        direct[version]=runner(previous,previous/'AppUpdate.cs',previous/'ReleaseTrust.cs',version)
     current=work/'current';current.mkdir()
     current_runner=runner(current,ROOT/'standalone/AppUpdate.cs',ROOT/'standalone/ReleaseTrust.cs',VERSION)
     # Reproduce the legacy format restriction; the unchanged v1.0.2 updater must refuse the final ZIP.
     app=work/'rejected';unzip(PREP/'v1.0.2'/(PRODUCT+'.zip'),app)
     call(old102,'prepare',app,OUT/(PRODUCT+'.version.json'),OUT/(PRODUCT+'.zip'),code=1)
     assert (app/'VERSION').read_text().strip()=='1.0.2'
-    for start in ('0.1.9','1.0.1','1.0.2','1.0.2.10'):
+    for start in ('0.1.9','1.0.1','1.0.2','1.0.2.10','1.0.2.14'):
         app=work/('app-'+start);unzip(PREP/('v'+start)/(PRODUCT+'.zip'),app)
         personal={'Appearance.txt':b'light','WindowPlacement.json':b'{"X":200,"Y":100,"Width":660,"Height":680}',
             'SimulatorDirectory.txt':b'fixture directory','StandaloneGlass.saved.ini':b'user backup',
             'ofxr_bridge.ini':b'LowerVRAM=1\nMultiplier=2\n','Navigation.txt':b'Settings'}
         for n,b in personal.items():(app/n).write_bytes(b)
-        if start=='1.0.2.10':step(old10210,app,PRODUCT,VERSION)
+        if start in direct:step(direct[start],app,PRODUCT,VERSION)
         else:
             if start!='1.0.2':step(old019 if start=='0.1.9' else old101,app,PRODUCT+'-legacy','1.0.2')
             step(old102,app,PRODUCT+'-bridge','1.0.2.1')
@@ -128,7 +132,7 @@ try:
     pairs=re.findall(r'RewriteCond %\{HTTP_USER_AGENT\} (\S+)\s+RewriteRule (\S+) (\S+) \[END\]',ht)
     assert len(pairs)==2 and '[R' not in ht
     for ua,suffix in [('0.1.4','legacy'),('0.1.9','legacy'),('0.1.10','legacy'),('1.0.0','legacy'),
-        ('1.0.1','legacy'),('1.0.2','bridge'),('1.0.2.0','bridge'),('1.0.2.1',None),('1.0.2.10',None),(VERSION,None),('1.0.3',None),('Mozilla/5.0',None)]:
+        ('1.0.1','legacy'),('1.0.2','bridge'),('1.0.2.0','bridge'),('1.0.2.1',None),('1.0.2.10',None),('1.0.2.14',None),(VERSION,None),('1.0.3',None),('Mozilla/5.0',None)]:
         for ext in ('version.json','zip'):
             path=PRODUCT+'.'+ext;agent=PRODUCT+'/'+ua if ua[0].isdigit() else ua
             for condition,pattern,replacement in pairs:
