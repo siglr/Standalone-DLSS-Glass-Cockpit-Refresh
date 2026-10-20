@@ -1,4 +1,4 @@
-RELEASE v1.0.2.15 — PREPARED, NOT PUBLISHED
+RELEASE v1.0.2.16 — PREPARED, NOT PUBLISHED
 
 NORMAL DOWNLOAD (all sites)
   server-upload/Standalone-DLSS-Glass-Cockpit-Refresh.zip
@@ -15,7 +15,7 @@ WSG: /otherdata/tools/
   Verify live browser and older-app download routes afterward.
 
 GITHUB / FLIGHTSIM.TO / HANGARADDONS
-  Version/tag: 1.0.2.15 / v1.0.2.15.
+  Version/tag: 1.0.2.16 / v1.0.2.16.
   RELEASE-DESCRIPTION.md: full product listing text.
   RELEASE-NOTES.md: changelog (under 2,000 characters).
   HANGAR-CHANGELOG.txt: identical short copy for HangarAddons.

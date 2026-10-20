@@ -45,7 +45,8 @@ try:
     for tag,names in [('v0.1.9',[PRODUCT+'.zip']),('v1.0.1',[PRODUCT+'.zip',PRODUCT+'-1.0.1-source.zip']),
         ('v1.0.2',[PRODUCT+'.zip',PRODUCT+'-1.0.2-source.zip']),
         ('v1.0.2.10',[PRODUCT+'.zip',PRODUCT+'-source.zip']),
-        ('v1.0.2.14',[PRODUCT+'.zip',PRODUCT+'-source.zip'])]:
+        ('v1.0.2.14',[PRODUCT+'.zip',PRODUCT+'-source.zip']),
+        ('v1.0.2.15',[PRODUCT+'.zip',PRODUCT+'-source.zip'])]:
         for name in names:
             dest=PREP/tag/name
             if not dest.exists():
@@ -64,7 +65,7 @@ try:
         for name in ('AppUpdate.cs','ReleaseTrust.cs'):(bridge/name).write_bytes(z.read('standalone/'+name))
     bridge_runner=runner(bridge,bridge/'AppUpdate.cs',bridge/'ReleaseTrust.cs','1.0.2.1')
     direct={}
-    for version in ('1.0.2.10','1.0.2.14'):
+    for version in ('1.0.2.10','1.0.2.14','1.0.2.15'):
         previous=source('v'+version)
         direct[version]=runner(previous,previous/'AppUpdate.cs',previous/'ReleaseTrust.cs',version)
     current=work/'current';current.mkdir()
@@ -73,7 +74,7 @@ try:
     app=work/'rejected';unzip(PREP/'v1.0.2'/(PRODUCT+'.zip'),app)
     call(old102,'prepare',app,OUT/(PRODUCT+'.version.json'),OUT/(PRODUCT+'.zip'),code=1)
     assert (app/'VERSION').read_text().strip()=='1.0.2'
-    for start in ('0.1.9','1.0.1','1.0.2','1.0.2.10','1.0.2.14'):
+    for start in ('0.1.9','1.0.1','1.0.2','1.0.2.10','1.0.2.14','1.0.2.15'):
         app=work/('app-'+start);unzip(PREP/('v'+start)/(PRODUCT+'.zip'),app)
         personal={'Appearance.txt':b'light','WindowPlacement.json':b'{"X":200,"Y":100,"Width":660,"Height":680}',
             'SimulatorDirectory.txt':b'fixture directory','StandaloneGlass.saved.ini':b'user backup',

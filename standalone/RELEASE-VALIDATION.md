@@ -1,39 +1,21 @@
-# v1.0.2.15 release preparation — 2026-10-20
+# v1.0.2.16 hotfix validation — 2026-10-20
 
-This is a local release candidate, not a published release. The app and graphics versions are separate. Official graphics files remain unchanged; no simulator, OFXR or headset installation was modified.
+## Reproduced defect and regression coverage
 
-## Official files and corresponding source
+The installed app v1.0.2.15 was inspected through Windows Computer Use with official graphics v1.0.3. Every Settings control was disabled by the exact-version allowlist. The new UI regression failed on the old code with `Official 1.0.3 settings must remain editable`.
 
-- Bundled graphics: IFreemz official v1.0.2 standalone DLL and ReShade add-on.
-- Standalone archive SHA-256: `010abd02f3b25f35fe06ff7376ce43920ef808fbf6afe5c0b100a20785d1eb94`.
-- Standalone dxgi.dll SHA-256: `5b505a00e5a072f6c2a9b37a6f19800f248850ace6fc51dcb802c0043a560d03`.
-- ReShade add-on SHA-256: `9474b66e2e22bc005233463574fc9ba9c107d4bfa8364e5c3478588f0e8f2036`.
-- Both downloads match the official release-note checksums and GitHub asset digests.
-- Standalone source: `9dd06d34767441a42d5fb0795b370ef1940fdd4c`. Add-on source: `c4651ad67cbb38f523f1f82279bfa6c2732b2be9`, from annotated tag `3905f7b83bd45f58d14b3d01af3d34babdebdeaa`. Both archives include pinned submodules and original notices.
-- Package checks compare each corresponding-source archive against its downloaded upstream source, and reject stale cached downloads when a release/source pin changes.
+The allowlist is removed. Tests cover v1.0.2, v1.0.3 and simulated future v1.0.4/v2.0.0 in both modes, including real INI edits, shortcut recording and resets. Navigation preserves INI bytes. Active operations still disable edits and restore them afterward; running add-on settings remain read-only. Incomplete installation/recovery, rollback, dropdown and theme/scaling checks remain in the UI suite.
 
-## App and installer checks
+The settings loaders/defaults in upstream v1.0.3 standalone commit a4eb07d and add-on tag v1.0.3 were compared with their reviewed v1.0.2 sources and are byte-identical. Future version numbers no longer gate editing: actual upstream setting changes can be handled in a later app update.
 
-- 429 shortcut capture, naming, modifier, reserved-combination and dialog-navigation checks passed.
-- 18 simulator-discovery checks, 44 native installer operations and 55 updater fixtures passed.
-- 75 official-engine operations/window checks and 50 two-mode operations/window checks passed, including add-on running-state restrictions, rollback, recovery and settings preservation.
-- 192 repaint checks passed. Automated UI checks cover both themes, simulated 100/125/150/200% scaling, dropdown stability, fixed frame/position, small working areas and navigation without INI writes.
-- New tests cover once-per-session update navigation, modal/busy/dropdown deferral, rollback preservation, official v1.0.2 settings support, new shortcut INI round-trips and unchanged existing settings until explicit Save.
+## Package and release checks
 
-## Graphics checks
+- Official-engine: 75 archive/selection/installer/recovery checks and UI self-test.
+- Both modes: 50 download/install/update/switch/rollback/uninstall checks, including running add-on UI restrictions.
+- Development ZIP: isolated signing, disabled official app updates, install/uninstall and independent settings preservation.
+- Repaint, standalone installer/discovery and updater suites are run for the release; production migration logs are retained in build/release-preparation/check-release-migration.txt.
+- Production migration exercises historical updaters from 0.1.9, 1.0.1, 1.0.2, 1.0.2.10, 1.0.2.14 and 1.0.2.15, the exact signed production EXE in both modes, immutable compatibility assets and unversioned routes/files.
 
-The real simulator was closed. Only isolated test hosts under this repository's build folder were run.
+The bundled official v1.0.2 graphics bytes, corresponding source and notices are unchanged from v1.0.2.15. Latest official release remains the normal installation default; updating the app does not replace an installed v1.0.3 DLL. Existing settings, OFXR files, original backups and screenshots/videos are preserved. Graphics/runtime tests from v1.0.2.15 remain applicable to the identical bundled binaries; no new graphics changes or real MSFS/VR validation is claimed. The known optional Dark screen fix ON glare failure remains; default OFF is retained.
 
-- Exact official standalone DLL: four startup probes, private-adapter/D3D11On12, 16 core rendering scenarios and 13 motion measurements passed.
-- Exact official add-on under ReShade 6.8.0: 16 core rendering scenarios and 13 motion measurements passed. Full ReShade is only a local test dependency and is not distributed.
-- External-settings and default-OFF first-glare tests passed in desktop and stereo fixtures. Optional **Dark screen fix ON** still failed both first-glare tests in official v1.0.2. The test script therefore returned failure for these two known upstream cases; the author-default OFF setting is retained. Full results are in `build/official-engine/regression-results.json` and companion logs.
-
-## Production package and publication checks
-
-Production packaging explicitly selects the existing protected publisher key, verifies it against the pinned public key, and enables official app updates. Test builds use their separate key and disable app updates. Main filenames remain unversioned.
-
-After signing, run `tests/release_migration_tests.py` against the staged candidate. Its log is retained in `build/release-preparation/check-release-migration.txt`; the final candidate hashes and preparation status are recorded beside it. These checks exercise real historical updater chains, production UI in both modes, immutable compatibility assets, fixed filenames, source checksums and routing expressions. Never publish a candidate with a failing check.
-
-Website staging uses a freshly read live index containing OpenXR FG Switcher. Only the Glass Cockpit Refresh card is changed; unrelated cards and routing rules are preserved. The four user-supplied screenshots remain byte-identical, with captions identifying the earlier test build. The mod page's cockpit illustration remains unchanged. Listing videos are to be retained. The shared changelog is under HangarAddons' 2,000-character limit.
-
-Live Apache routing and listing downloads must be verified after publication. Offline graphics and automated UI checks do not establish real MSFS/aircraft/headset compatibility or complete manual keyboard-layout coverage. No new antivirus clearance or Windows code-signing claim is made.
+Production signing uses the established protected publisher key and pinned public key. Development packages use the separate test key. No publisher key, user settings or generated output is included in source commits. Live publication and older-app HTTP routes are verified after deployment and recorded under build/release-preparation.

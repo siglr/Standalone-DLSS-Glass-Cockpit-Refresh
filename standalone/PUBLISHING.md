@@ -1,6 +1,6 @@
 # Packaging and signing
 
-## Current official-DLL release: 1.0.2.15
+## Current official-DLL release: 1.0.2.16
 
 Build from this checkout using `python -B scripts/official_release_package.py --enable-official-updates --shared-site "C:\WSG MSFS 2024 FG Switcher\dist\website"`, with `GLASS_SIGNING_KEY` explicitly set to the existing protected production key. Never generate a replacement key. The app is compiled with the pinned production public key and official updates enabled. Both IFreemz graphics files remain byte-unchanged and must match the release-note checksums. Development builds use their separate key and disable official app updates.
 
@@ -30,7 +30,7 @@ Run `python -B scripts/prepare_release_uploads.py` after signing to stage the tw
 
 Run standalone discovery/installer, updater, official-engine, installation-mode, compatibility, dirty-buffer paint and development-package checks. Run `tests/release_migration_tests.py` against the production signed ZIP: real historical update chains, direct v1.0.2.10 upgrade, retained personal files/OFXR, exact production UI in both modes, immutable bridge checks, and staged route/filename checks. Run graphics fixtures sequentially only with the real simulator closed. The optional Dark screen fix ON glare failure is a disclosed upstream limitation; default-OFF, external-settings, startup and core checks must pass.
 
-Prepare RELEASE-DESCRIPTION.md, RELEASE-NOTES.md and the user-approved screenshots with an accurate version caption for GitHub, WSG, Flightsim.to and HangarAddons. Preparation alone does not publish anything. Commit/push the exact source before creating release tag v1.0.2.15.
+Prepare RELEASE-DESCRIPTION.md, RELEASE-NOTES.md and the user-approved screenshots with an accurate version caption for GitHub, WSG, Flightsim.to and HangarAddons. Preparation alone does not publish anything. Commit/push the exact source before creating release tag v1.0.2.16.
 
 1. Publish current corresponding source and checksum on GitHub/WSG.
 2. Retain or restore the exact pinned compatibility files and merge routing without dropping newer live rules.

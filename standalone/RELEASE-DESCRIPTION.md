@@ -9,6 +9,7 @@ Choose **Standalone DLL** for a setup without full ReShade, or **ReShade add-on*
 - **Setup** contains the game folder, installation mode, installed version, version selection and compatibility information. The selected version is clearly separate from the installed version.
 - Newer official releases automatically open Setup once per session, with a prominent **Update to v…** button. Manual rollback choices and active dialogs are respected.
 - **Latest official release** is the default. Downloads must match IFreemz's release-note SHA-256 checksums and GitHub asset digests. Choose the bundled version for offline installation, or select an older verified release for rollback.
+- Updating to a newer official DLL keeps the existing settings editable. Changes to the upstream settings themselves can be handled in a later app update.
 - **Settings** contains the enable control, standalone settings-window shortcut recorder and line smoothing. Advanced and Experimental options expand when needed, with separate resets.
 - Dark and light themes, a fixed window that remembers its position, centered dialogs and scrolling for smaller screens.
 - Switching modes and updating preserve existing glass settings, shortcuts and original uninstall backups. OFXR, Pimax and simulator settings remain unchanged.
@@ -37,4 +38,4 @@ Download, instructions and checksum verification: https://wesimglide.org/otherda
 
 The separate app uses PolyForm Noncommercial; IFreemz's graphics files retain GPL-3.0-only and the original notices. Corresponding source is included under **Source code**. Checksums and release signatures identify and verify the package; they are not antivirus clearance.
 
-Screenshots illustrate the dark and light themes using the earlier v1.0.2.14 test build; current downloads are v1.0.2.15. Official release downloads have automatic app updates enabled; the disabled-update notice in the screenshots applies only to the test build. These are app-window screenshots, not in-game captures.
+Screenshots illustrate the dark and light themes using the earlier v1.0.2.14 test build; current downloads are v1.0.2.16. Official release downloads have automatic app updates enabled; the disabled-update notice in the screenshots applies only to the test build. These are app-window screenshots, not in-game captures.

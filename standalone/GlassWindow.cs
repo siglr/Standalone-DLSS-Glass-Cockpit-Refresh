@@ -395,14 +395,10 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         installedSummary.Text=complete?"Installed: "+(installedAddon?"ReShade add-on":"Standalone DLL")+" v"+(installed.engineVersion??"unknown"):present?"Installed: incomplete — recovery needed":"Installed: not installed";
         installedSummary.ForeColor=WsgTheme.Text;
         modeHint.Text=AddonMode?"Requires ReShade with add-on support, installed separately.":"For users who do not use ReShade.";
-        bool knownSettings=false;
-        if(complete)try {
-            var receipt=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<NativeInstaller.Receipt>(File.ReadAllText(Receipt));
-            // 1.0.2 keeps the same keys/defaults; standalone reloads INI before saving.
-            knownSettings=receipt.engineVersion=="1.0.0"||receipt.engineVersion=="1.0.1"||receipt.engineVersion=="1.0.2";
-        } catch { }
         bool addonRunning=installedAddon&&SimulatorRunning();
-        note.Text=addonRunning?"MSFS is running — change add-on settings in ReShade.":complete&&!knownSettings ? "Settings format not verified — use the original in-sim window." : "";
+        // New official versions may change individual keys; their version alone
+        // must never disable all of the settings this app already knows.
+        note.Text=addonRunning?"MSFS is running — change add-on settings in ReShade.":"";
         LayoutFooter();
         bool recovery=found&&RecoveryPending();
         string installedStatus="";
@@ -423,12 +419,12 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         install.AccessibleDescription=officialUpdate&&FollowLatest?
             "A newer official release is available. Update preserves your settings.":"";
         installMode.Enabled=!busy;
-        browse.Enabled=!busy; enabled.Enabled=!busy && complete && knownSettings&&!addonRunning;
+        browse.Enabled=!busy; enabled.Enabled=!busy && complete&&!addonRunning;
         engineVersions.Enabled=!busy;
         glass.ReShadeMode=complete?installedAddon:AddonMode;
         glass.ShortcutRequiresUpdate=complete&&!installedAddon&&(installed.engineVersion=="1.0.0"||installed.engineVersion=="1.0.1");
         emptySettings.Visible=!complete;enabled.Visible=complete;glass.Visible=complete;note.Visible=complete&&note.Text.Length>0;
-        glass.RefreshValues(!busy && complete && knownSettings&&!addonRunning,complete&&knownSettings);
+        glass.RefreshValues(!busy && complete&&!addonRunning,complete);
         RefreshCompatibility();
         refreshing=true; enabled.Checked=complete && GetPrivateProfileInt("overlay","enabled",1,Ini)!=0; refreshing=false;
         if(!busy) status.Text=other ? "Remove the conflicting mod using its own installer first."
@@ -666,11 +662,21 @@ For the ReShade add-on, edit here with MSFS closed. During a flight, use the Gla
         RefreshState();Check(currentPage=="Settings"&&!install.Enabled,"Other mode's release must not prompt an update");
         latestEngine=currentRelease;
         try {
-            var updated=CurrentReceipt();updated.engineVersion="1.0.2";
-            File.WriteAllText(Receipt,new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(updated));RefreshState();
-            Check(glass.Enabled==!(addon&&SimulatorRunning()),"Official 1.0.2 settings must remain editable");
-            Check(!glass.ShortcutRequiresUpdate,"Official 1.0.2 must allow current shortcut rules");
-        } finally { File.WriteAllBytes(Receipt,receipt);RefreshState(); }
+            // A verified graphics update must not lock settings behind an app update.
+            foreach(string version in new[]{"1.0.2","1.0.3","1.0.4","2.0.0"}) {
+                var updated=CurrentReceipt();updated.engineVersion=version;
+                File.WriteAllText(Receipt,new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(updated));RefreshState();
+                bool editable=!(addon&&SimulatorRunning());
+                Check(glass.Enabled==editable&&enabled.Enabled==editable,"Official "+version+" settings must remain editable");
+                Check(!glass.ShortcutRequiresUpdate,"Official "+version+" must allow current shortcut rules");
+                Check(note.Text==(editable?"":"MSFS is running — change add-on settings in ReShade."),"A newer DLL must not be reported as an unsupported settings format");
+                busy=true;RefreshState();
+                Check(!glass.Enabled&&!enabled.Enabled,"An operation in progress must still prevent settings edits");
+                busy=false;RefreshState();
+                Check(glass.Enabled==editable&&enabled.Enabled==editable,"Settings must recover after an operation");
+                if(!addon)glass.SelfTest(preview+".settings-"+version);
+            }
+        } finally { busy=false;File.WriteAllBytes(Receipt,receipt);RefreshState(); }
         Check(Convert.ToBase64String(originalIni)==Convert.ToBase64String(File.ReadAllBytes(Ini)),"Update discovery wrote simulator settings");
         // Invalid receipts and interrupted transactions must stay on Setup without a crash.
         try {

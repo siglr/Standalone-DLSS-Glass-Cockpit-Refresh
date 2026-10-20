@@ -1,6 +1,6 @@
 GLASS COCKPIT REFRESH — QUICK START
 
-Release v1.0.2.15. The app checks for updates at launch. Older apps may reopen
+Release v1.0.2.16. The app checks for updates at launch. Older apps may reopen
 more than once to complete compatibility updates; no uninstall is required.
 
 INSTALL
